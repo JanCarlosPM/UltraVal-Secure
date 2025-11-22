@@ -609,7 +609,7 @@ export const SolicitudesView = () => {
             Incidencias
           </h1>
           <p className="text-slate-600">
-            Gestión y seguimiento centralizado de incidencias UltraVal
+            Gestión y seguimiento centralizado de incidencias
           </p>
         </div>
       </div>

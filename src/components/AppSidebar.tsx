@@ -269,7 +269,7 @@ export function AppSidebar({ activeTab, onTabChange }: AppSidebarProps) {
           {open && (
             <div className="flex flex-col">
               <span className="text-sm font-semibold tracking-wide">
-                UltraVal Secure Desk
+               ULTRAVAL Secure Desk
               </span>
 
             </div>

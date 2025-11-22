@@ -145,11 +145,11 @@ const getPrioridadColor = (prioridad: Prioridad | string) => {
     case "alta":
       return "bg-orange-500";
     case "media":
-      return "bg-yellow-500";
+      return "bg-amber-500";
     case "baja":
-      return "bg-green-500";
+      return "bg-emerald-600";
     default:
-      return "bg-gray-500";
+      return "bg-slate-500";
   }
 };
 
@@ -188,12 +188,15 @@ const BorradoresView = () => {
     (profile.role !== "supervisor_monitoreo" && profile.role !== "admin")
   ) {
     return (
-      <Card>
+      <Card className="border border-slate-200 shadow-sm">
         <CardHeader>
-          <CardTitle>Acceso Restringido</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-slate-900">
+            <XCircle className="h-5 w-5 text-red-500" />
+            Acceso restringido
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <p>
+          <p className="text-sm text-slate-600">
             Solo los supervisores de monitoreo y administradores pueden acceder
             a esta sección.
           </p>
@@ -498,10 +501,10 @@ const BorradoresView = () => {
     return (
       <div className="space-y-4">
         {[...Array(3)].map((_, i) => (
-          <Card key={i} className="animate-pulse">
+          <Card key={i} className="animate-pulse border border-slate-200">
             <CardContent className="pt-6">
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
-              <div className="h-4 bg-gray-200 rounded w-1/2" />
+              <div className="h-4 bg-slate-100 rounded w-3/4 mb-2" />
+              <div className="h-4 bg-slate-100 rounded w-1/2" />
             </CardContent>
           </Card>
         ))}
@@ -512,20 +515,20 @@ const BorradoresView = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <Card>
+      <Card className="border border-slate-200 shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Incidencias Pendientes de Asignar
+          <CardTitle className="flex items-center gap-2 text-slate-900">
+            <Clock className="h-5 w-5 text-emerald-700" />
+            Incidencias pendientes de asignar
           </CardTitle>
-          <CardDescription>
-            Revisa, edita y asigna las incidencias creadas por los monitores a
+          <CardDescription className="text-slate-500">
+            Revisa, ajusta y asigna las incidencias creadas por los monitores a
             los responsables correspondientes.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between mb-4">
-            <Badge variant="secondary">
+          <div className="flex items-center justify-between mb-2">
+            <Badge variant="secondary" className="text-slate-700">
               {borradores.length} incidencias pendientes
             </Badge>
             <Button
@@ -538,7 +541,7 @@ const BorradoresView = () => {
               variant="outline"
               size="sm"
             >
-              Actualizar
+              Actualizar listado
             </Button>
           </div>
         </CardContent>
@@ -556,7 +559,7 @@ const BorradoresView = () => {
             return (
               <Card
                 key={incidencia.id}
-                className="hover:shadow-md transition-shadow"
+                className="hover:shadow-md transition-shadow border border-slate-200"
               >
                 <CardContent className="pt-6">
                   {editingId === incidencia.id ? (
@@ -564,7 +567,7 @@ const BorradoresView = () => {
                     <div className="space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium mb-1">
+                          <label className="block text-sm font-medium mb-1 text-slate-700">
                             Título
                           </label>
                           <Input
@@ -578,7 +581,7 @@ const BorradoresView = () => {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium mb-1">
+                          <label className="block text-sm font-medium mb-1 text-slate-700">
                             Prioridad
                           </label>
                           <Select
@@ -591,7 +594,7 @@ const BorradoresView = () => {
                             }
                           >
                             <SelectTrigger>
-                              <SelectValue />
+                              <SelectValue placeholder="Selecciona prioridad" />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="baja">Baja</SelectItem>
@@ -602,7 +605,7 @@ const BorradoresView = () => {
                           </Select>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium mb-1">
+                          <label className="block text-sm font-medium mb-1 text-slate-700">
                             Área
                           </label>
                           <Select
@@ -615,7 +618,7 @@ const BorradoresView = () => {
                             }
                           >
                             <SelectTrigger>
-                              <SelectValue />
+                              <SelectValue placeholder="Selecciona área" />
                             </SelectTrigger>
                             <SelectContent>
                               {areas.map((area) => (
@@ -627,7 +630,7 @@ const BorradoresView = () => {
                           </Select>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium mb-1">
+                          <label className="block text-sm font-medium mb-1 text-slate-700">
                             Clasificación
                           </label>
                           <Select
@@ -640,7 +643,7 @@ const BorradoresView = () => {
                             }
                           >
                             <SelectTrigger>
-                              <SelectValue />
+                              <SelectValue placeholder="Selecciona clasificación" />
                             </SelectTrigger>
                             <SelectContent>
                               {clasificaciones.map((c) => (
@@ -652,7 +655,7 @@ const BorradoresView = () => {
                           </Select>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium mb-1">
+                          <label className="block text-sm font-medium mb-1 text-slate-700">
                             Sala
                           </label>
                           <Select
@@ -665,7 +668,7 @@ const BorradoresView = () => {
                             }
                           >
                             <SelectTrigger>
-                              <SelectValue />
+                              <SelectValue placeholder="Selecciona sala" />
                             </SelectTrigger>
                             <SelectContent>
                               {salas.map((sala) => (
@@ -677,7 +680,7 @@ const BorradoresView = () => {
                           </Select>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium mb-1">
+                          <label className="block text-sm font-medium mb-1 text-slate-700">
                             Tiempo (minutos)
                           </label>
                           <Input
@@ -695,7 +698,7 @@ const BorradoresView = () => {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium mb-1">
+                        <label className="block text-sm font-medium mb-1 text-slate-700">
                           Descripción
                         </label>
                         <Textarea
@@ -711,7 +714,7 @@ const BorradoresView = () => {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium mb-1">
+                        <label className="block text-sm font-medium mb-1 text-slate-700">
                           Observaciones
                         </label>
                         <Textarea
@@ -729,13 +732,13 @@ const BorradoresView = () => {
                       <div className="flex gap-2">
                         <Button
                           onClick={() => handleSaveEdit(incidencia.id)}
-                          className="flex-1"
+                          className="flex-1 bg-emerald-600 hover:bg-emerald-700"
                           disabled={editarIncidencia.isPending}
                         >
                           <Save className="w-4 h-4 mr-2" />
                           {editarIncidencia.isPending
                             ? "Guardando..."
-                            : "Guardar Cambios"}
+                            : "Guardar cambios"}
                         </Button>
                         <Button
                           onClick={handleCancelEdit}
@@ -752,13 +755,13 @@ const BorradoresView = () => {
                     <>
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex-1">
-                          <h3 className="font-semibold text-lg mb-2">
+                          <h3 className="font-semibold text-lg text-slate-900 mb-2">
                             {incidencia.titulo}
                           </h3>
                           <div className="flex flex-wrap gap-2 mb-3">
                             <Badge variant="outline">
                               <MapPin className="w-3 h-3 mr-1" />
-                              {incidencia.areas?.nombre}
+                              {incidencia.areas?.nombre || "Sin área"}
                             </Badge>
 
                             {incidencia.incidencia_clasificaciones &&
@@ -801,42 +804,42 @@ const BorradoresView = () => {
                               <AlertTriangle className="w-3 h-3 mr-1" />
                               {incidencia.prioridad}
                             </Badge>
-                            {/* Estado oculto en esta vista */}
                           </div>
                         </div>
-                        <div className="text-right text-sm text-gray-500">
-                          <p className="flex items-center gap-1">
+                        <div className="text-right text-sm text-slate-500">
+                          <p className="flex items-center gap-1 justify-end">
                             <Calendar className="w-3 h-3" />
                             <span>
                               Reportada:{" "}
                               {formatFechaHora(incidencia.fecha_incidencia)}
                             </span>
                           </p>
-                          <p className="flex items-center gap-1 mt-1">
+                          <p className="flex items-center gap-1 mt-1 justify-end">
                             <User className="w-3 h-3" />
                             <span>
                               Reportado por:{" "}
                               {reporter?.full_name ||
                                 reporter?.email ||
-                                incidencia.reportado_por}
+                                incidencia.reportado_por ||
+                                "Sin dato"}
                             </span>
                           </p>
                         </div>
                       </div>
 
-                      <p className="text-gray-700 mb-3">
+                      <p className="text-slate-700 mb-3">
                         {incidencia.descripcion}
                       </p>
 
                       {incidencia.observaciones && (
-                        <div className="bg-gray-50 p-3 rounded-lg mb-3">
+                        <div className="bg-slate-50 p-3 rounded-lg mb-3 text-sm">
                           <strong>Observaciones:</strong>{" "}
                           {incidencia.observaciones}
                         </div>
                       )}
 
                       {typeof incidencia.tiempo_minutos === "number" && (
-                        <div className="bg-blue-50 p-3 rounded-lg mb-3">
+                        <div className="bg-emerald-50 p-3 rounded-lg mb-3 text-sm">
                           <strong>Tiempo reportado:</strong>{" "}
                           {incidencia.tiempo_minutos} minutos
                         </div>
@@ -845,7 +848,7 @@ const BorradoresView = () => {
                       {incidencia.imagenes_incidencias &&
                         incidencia.imagenes_incidencias.length > 0 && (
                           <div className="mb-4">
-                            <p className="text-sm font-medium text-gray-700 mb-2">
+                            <p className="text-sm font-medium text-slate-700 mb-2">
                               Evidencia multimedia (
                               {incidencia.imagenes_incidencias.length}{" "}
                               archivos)
@@ -857,8 +860,8 @@ const BorradoresView = () => {
                                 return (
                                   <div key={imagen.id} className="relative">
                                     {isVideo ? (
-                                      <div className="w-full h-16 bg-gray-100 rounded flex items-center justify-center">
-                                        <span className="text-xs text-gray-500">
+                                      <div className="w-full h-16 bg-slate-100 rounded flex items-center justify-center">
+                                        <span className="text-xs text-slate-500">
                                           Video
                                         </span>
                                       </div>
@@ -866,7 +869,7 @@ const BorradoresView = () => {
                                       <img
                                         src={imagen.url_imagen}
                                         alt="Evidencia"
-                                        className="w-full h-16 object-cover rounded"
+                                        className="w-full h-16 object-cover rounded border border-slate-200"
                                       />
                                     )}
                                   </div>
@@ -876,7 +879,7 @@ const BorradoresView = () => {
                           </div>
                         )}
 
-                      <div className="flex gap-2 pt-4 border-t">
+                      <div className="flex gap-2 pt-4 border-t border-slate-200">
                         <Button
                           onClick={() => handleEdit(incidencia)}
                           variant="outline"
@@ -888,7 +891,7 @@ const BorradoresView = () => {
 
                         <Button
                           onClick={() => openAssignDialog(incidencia)}
-                          className="flex-1 bg-green-600 hover:bg-green-700"
+                          className="flex-1 bg-emerald-600 hover:bg-emerald-700"
                         >
                           <CheckCircle className="w-4 h-4 mr-2" />
                           Asignar
@@ -914,11 +917,11 @@ const BorradoresView = () => {
           })}
         </div>
       ) : (
-        <Card>
+        <Card className="border border-slate-200">
           <CardContent className="text-center py-8">
-            <CheckCircle className="mx-auto h-12 w-12 text-green-500 mb-4" />
-            <p className="text-gray-600">
-              No hay incidencias pendientes de asignación
+            <CheckCircle className="mx-auto h-12 w-12 text-emerald-500 mb-4" />
+            <p className="text-slate-600">
+              No hay incidencias pendientes de asignación.
             </p>
           </CardContent>
         </Card>
@@ -945,23 +948,25 @@ const BorradoresView = () => {
           </DialogHeader>
 
           {incidenciaSeleccionada && (
-            <div className="space-y-2 mb-4">
-              <p className="text-sm">
-                <span className="font-semibold">Título:</span>{" "}
+            <div className="space-y-2 mb-4 text-sm">
+              <p>
+                <span className="font-semibold text-slate-800">Título:</span>{" "}
                 {incidenciaSeleccionada.titulo}
               </p>
-              <p className="text-sm">
-                <span className="font-semibold">Área:</span>{" "}
+              <p>
+                <span className="font-semibold text-slate-800">Área:</span>{" "}
                 {incidenciaSeleccionada.areas?.nombre || "Sin área"}
               </p>
-              <p className="text-xs text-gray-500 line-clamp-3">
+              <p className="text-xs text-slate-500 line-clamp-3">
                 {incidenciaSeleccionada.descripcion}
               </p>
             </div>
           )}
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Responsable</label>
+            <label className="text-sm font-medium text-slate-700">
+              Responsable
+            </label>
             <Select
               value={responsableSeleccionado}
               onValueChange={setResponsableSeleccionado}
@@ -1022,16 +1027,16 @@ const BorradoresView = () => {
           </DialogHeader>
 
           {incidenciaARechazar && (
-            <div className="space-y-2 mb-4">
-              <p className="text-sm">
-                <span className="font-semibold">Título:</span>{" "}
+            <div className="space-y-2 mb-4 text-sm">
+              <p>
+                <span className="font-semibold text-slate-800">Título:</span>{" "}
                 {incidenciaARechazar.titulo}
               </p>
-              <p className="text-sm">
-                <span className="font-semibold">Área:</span>{" "}
+              <p>
+                <span className="font-semibold text-slate-800">Área:</span>{" "}
                 {incidenciaARechazar.areas?.nombre || "Sin área"}
               </p>
-              <p className="text-xs text-gray-500 line-clamp-3">
+              <p className="text-xs text-slate-500 line-clamp-3">
                 {incidenciaARechazar.descripcion}
               </p>
             </div>

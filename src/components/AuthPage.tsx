@@ -185,7 +185,7 @@ const AuthPage = () => {
           </div>
           <div className="space-y-2">
             <h1 className="text-3xl font-bold text-white drop-shadow-lg">
-              UltraVal Secure Desk
+              ULTRAVAL Secure Desk
             </h1>
             <p className="text-white/80 text-lg drop-shadow-md">
               Accede de forma segura a tu cuenta

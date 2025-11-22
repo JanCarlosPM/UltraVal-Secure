@@ -1189,9 +1189,9 @@ const UserManagement = () => {
           {/* Sucursales */}
           <Card>
             <CardHeader>
-              <CardTitle>Sucursales / Salas</CardTitle>
+              <CardTitle>Sucursales</CardTitle>
               <CardDescription>
-                Salas disponibles para asignar incidencias y solicitudes
+                Sucursales disponibles para asignar incidencias
               </CardDescription>
             </CardHeader>
             <CardContent>

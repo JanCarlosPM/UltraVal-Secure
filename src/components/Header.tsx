@@ -57,7 +57,7 @@ const Header = () => {
               />
             </div>
             <h2 className="text-xl font-bold bg-gradient-to-r from-emerald-700 to-emerald-900 bg-clip-text text-transparent">
-              UltraVal Secure Desk
+              ULTRAVAL Secure Desk
             </h2>
           </div>
 

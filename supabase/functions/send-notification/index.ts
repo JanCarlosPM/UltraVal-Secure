@@ -236,7 +236,7 @@ const handler = async (req: Request): Promise<Response> => {
         </div>
         
         <div style="background: #6b7280; color: white; padding: 15px; text-align: center; font-size: 12px;">
-          Sistema de Monitoreo - UltraVal Secure Desk<br>
+          Sistema de Monitoreo - ULTRAVAL Secure Desk<br>
           Este es un mensaje automático generado por el sistema.<br>
           <span style="opacity: 0.8;">ID: ${notificationData.incidencia_id.slice(
             0,

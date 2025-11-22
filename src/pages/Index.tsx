@@ -155,7 +155,7 @@ const Index = () => {
             <SidebarTrigger className="-ml-1 text-emerald-50 hover:text-white" />
             <div className="ml-auto flex items-center gap-2 text-xs sm:text-sm text-emerald-50">
               <AlertTriangle className="h-4 w-4 text-emerald-300" />
-              <span>Sistema de Monitoreo - UltraVal Secure Desk</span>
+              <span>Sistema de Monitoreo - ULTRAVAL Secure Desk</span>
             </div>
           </header>
 
