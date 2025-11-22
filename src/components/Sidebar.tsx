@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   BarChart3, 
@@ -57,6 +56,13 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
       path: '/pagos724'
     },
     { 
+      id: 'historial-incidencias', 
+      label: 'Mis incidencias', 
+      icon: MessageSquare, 
+      roles: ['admin', 'supervisor_monitoreo', 'monitor'],
+      path: '/mis-incidencias'
+    },
+    { 
       id: 'reportes', 
       label: 'Reportes', 
       icon: FileText, 
@@ -74,7 +80,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
       icon: Clock, 
       roles: ['admin', 'supervisor_monitoreo', 'monitor'] 
     },
-
     { 
       id: 'admin', 
       label: 'Admin', 

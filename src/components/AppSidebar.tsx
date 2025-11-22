@@ -133,7 +133,7 @@ export function AppSidebar({ activeTab, onTabChange }: AppSidebarProps) {
 
     { 
       id: 'consolidado', 
-      label: 'Consolidado Diario', 
+      label: 'Historial de incidencias', 
       icon: CalendarClock, 
       roles: ['admin', 'rrhh', 'supervisor_salas', 'finanzas', 'mantenimiento', 'lector'] 
     },
@@ -186,7 +186,7 @@ export function AppSidebar({ activeTab, onTabChange }: AppSidebarProps) {
 
   // Dividir items en grupos lógicos
   const mainItems = filteredMenuItems.filter(item => 
-    ['dashboard'].includes(item.id)
+    ['dashboard', 'consolidado'].includes(item.id)
   );
   
   const moduleItems = filteredMenuItems.filter(item => 
