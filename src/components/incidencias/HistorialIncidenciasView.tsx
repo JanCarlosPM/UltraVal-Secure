@@ -130,13 +130,13 @@ interface HistorialEstado {
 const getPrioridadColor = (prioridad: Prioridad | string) => {
   switch (prioridad) {
     case "critica":
-      return "bg-red-600"; // crítico
+      return "bg-red-600";
     case "alta":
-      return "bg-amber-500"; // alta
+      return "bg-amber-500";
     case "media":
-      return "bg-sky-500"; // media
+      return "bg-sky-500";
     case "baja":
-      return "bg-emerald-500"; // baja
+      return "bg-emerald-500";
     default:
       return "bg-slate-500";
   }
@@ -204,9 +204,23 @@ const HistorialIncidenciasView = () => {
   const [selectedIncidencia, setSelectedIncidencia] =
     useState<IncidenciaUsuario | null>(null);
   const [nuevoComentario, setNuevoComentario] = useState("");
+
+  // Eliminar incidencia
   const [incidenciaAEliminar, setIncidenciaAEliminar] =
     useState<IncidenciaUsuario | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [comentarioEliminacion, setComentarioEliminacion] = useState("");
+
+  // Reabrir incidencia
+  const [incidenciaAReabrir, setIncidenciaAReabrir] =
+    useState<IncidenciaUsuario | null>(null);
+  const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
+  const [comentarioReapertura, setComentarioReapertura] = useState("");
+
+  // Filtro de vista (tabs)
+  const [filtro, setFiltro] = useState<
+    "todas" | "abiertas" | "en_pausa" | "en_espera_info" | "cerradas"
+  >("todas");
 
   if (!profile) {
     return (
@@ -251,7 +265,7 @@ const HistorialIncidenciasView = () => {
           )
         `
         )
-        .eq("reportado_por", profile.id) // si usas email, cambia a .eq("reportado_por", profile.email)
+        .eq("reportado_por", profile.id)
         .eq("visible", true)
         .order("created_at", { ascending: false });
 
@@ -319,7 +333,6 @@ const HistorialIncidenciasView = () => {
 
       const now = new Date().toISOString();
 
-      // 1) Actualizar observaciones (puede ser append si quieres)
       const { error: updError } = await supabase
         .from("incidencias")
         .update({
@@ -331,7 +344,6 @@ const HistorialIncidenciasView = () => {
 
       if (updError) throw updError;
 
-      // 2) Registrar en historial (mismo estado, solo como nota)
       const { error: histError } = await supabase
         .from("incidencia_historial_estados")
         .insert({
@@ -364,23 +376,47 @@ const HistorialIncidenciasView = () => {
     },
   });
 
-  // "Eliminar" incidencia (soft delete: visible = false)
+  // "Eliminar" incidencia (soft delete: visible = false) con comentario obligatorio
   const eliminarIncidencia = useMutation({
-    mutationFn: async (params: { incidenciaId: string }) => {
-      const { incidenciaId } = params;
+    mutationFn: async (params: {
+      incidenciaId: string;
+      comentario: string;
+      estadoActual: string;
+    }) => {
+      const { incidenciaId, comentario, estadoActual } = params;
 
-      const { error } = await supabase
+      if (!comentario.trim()) {
+        throw new Error("Debes ingresar un comentario para eliminar.");
+      }
+
+      const now = new Date().toISOString();
+
+      const { error: updateError } = await supabase
         .from("incidencias")
-        .update({ visible: false })
+        .update({ visible: false, updated_at: now })
         .eq("id", incidenciaId)
-        .eq("reportado_por", profile.id);
+        .eq("reportado_por", profile.id)
+        .in("estado", ["pendiente", "borrador"]);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
+
+      const { error: histError } = await supabase
+        .from("incidencia_historial_estados")
+        .insert({
+          incidencia_id: incidenciaId,
+          estado: estadoActual,
+          comentario: `Incidencia eliminada por el usuario que la reportó: ${comentario}`,
+          cambiado_por: profile.id,
+          fecha_cambio: now,
+        });
+
+      if (histError) throw histError;
     },
     onSuccess: () => {
       toast.success("Incidencia eliminada correctamente");
       setIsDeleteDialogOpen(false);
       setIncidenciaAEliminar(null);
+      setComentarioEliminacion("");
       if (selectedIncidencia) setSelectedIncidencia(null);
       queryClient.invalidateQueries({
         queryKey: ["mis-incidencias", profile.id],
@@ -388,7 +424,61 @@ const HistorialIncidenciasView = () => {
     },
     onError: (error: any) => {
       console.error("Error eliminando incidencia:", error);
-      toast.error("No se pudo eliminar la incidencia");
+      toast.error(error?.message || "No se pudo eliminar la incidencia");
+    },
+  });
+
+  // Reabrir incidencia (solo si está cerrada) con comentario obligatorio
+  const reabrirIncidencia = useMutation({
+    mutationFn: async (params: {
+      incidenciaId: string;
+      comentario: string;
+    }) => {
+      const { incidenciaId, comentario } = params;
+
+      if (!comentario.trim()) {
+        throw new Error("Debes ingresar un comentario para reabrir.");
+      }
+
+      const now = new Date().toISOString();
+
+      const { error: updateError } = await supabase
+        .from("incidencias")
+        .update({
+          estado: "reabierta",
+          updated_at: now,
+          visible: true,
+        })
+        .eq("id", incidenciaId)
+        .eq("reportado_por", profile.id)
+        .eq("estado", "cerrada");
+
+      if (updateError) throw updateError;
+
+      const { error: histError } = await supabase
+        .from("incidencia_historial_estados")
+        .insert({
+          incidencia_id: incidenciaId,
+          estado: "reabierta",
+          comentario,
+          cambiado_por: profile.id,
+          fecha_cambio: now,
+        });
+
+      if (histError) throw histError;
+    },
+    onSuccess: () => {
+      toast.success("Incidencia reabierta correctamente");
+      setIsReopenDialogOpen(false);
+      setIncidenciaAReabrir(null);
+      setComentarioReapertura("");
+      queryClient.invalidateQueries({
+        queryKey: ["mis-incidencias", profile.id],
+      });
+    },
+    onError: (error: any) => {
+      console.error("Error reabriendo incidencia:", error);
+      toast.error(error?.message || "No se pudo reabrir la incidencia");
     },
   });
 
@@ -399,10 +489,13 @@ const HistorialIncidenciasView = () => {
   const puedeComentar =
     selectedIncidencia && selectedIncidencia.estado === "en_espera_info";
 
-  const puedeEliminar = (inc: IncidenciaUsuario) => {
-    // Ajustable: aquí decides en qué estados el usuario puede "borrar"
-    return !["cerrada", "resuelta"].includes(inc.estado as string);
-  };
+  // Eliminar solo mientras la incidencia no ha entrado al flujo (pendiente/borrador)
+  const puedeEliminar = (inc: IncidenciaUsuario) =>
+    ["pendiente", "borrador"].includes(inc.estado as string);
+
+  // Reabrir solo cuando ya está cerrada
+  const puedeReabrir = (inc: IncidenciaUsuario) =>
+    inc.estado === "cerrada";
 
   const abrirDetalle = (incidencia: IncidenciaUsuario) => {
     setSelectedIncidencia(incidencia);
@@ -416,12 +509,39 @@ const HistorialIncidenciasView = () => {
 
   const abrirDialogoEliminar = (incidencia: IncidenciaUsuario) => {
     setIncidenciaAEliminar(incidencia);
+    setComentarioEliminacion("");
     setIsDeleteDialogOpen(true);
   };
 
   const confirmarEliminar = () => {
     if (!incidenciaAEliminar) return;
-    eliminarIncidencia.mutate({ incidenciaId: incidenciaAEliminar.id });
+    if (!comentarioEliminacion.trim()) {
+      toast.error("Debes ingresar un comentario para eliminar.");
+      return;
+    }
+    eliminarIncidencia.mutate({
+      incidenciaId: incidenciaAEliminar.id,
+      comentario: comentarioEliminacion.trim(),
+      estadoActual: incidenciaAEliminar.estado as string,
+    });
+  };
+
+  const abrirDialogoReabrir = (incidencia: IncidenciaUsuario) => {
+    setIncidenciaAReabrir(incidencia);
+    setComentarioReapertura("");
+    setIsReopenDialogOpen(true);
+  };
+
+  const confirmarReapertura = () => {
+    if (!incidenciaAReabrir) return;
+    if (!comentarioReapertura.trim()) {
+      toast.error("Debes ingresar un comentario para reabrir.");
+      return;
+    }
+    reabrirIncidencia.mutate({
+      incidenciaId: incidenciaAReabrir.id,
+      comentario: comentarioReapertura.trim(),
+    });
   };
 
   // Stats rápidas
@@ -438,11 +558,184 @@ const HistorialIncidenciasView = () => {
   const cerradas = incidencias.filter((i) =>
     ["cerrada", "resuelta"].includes(i.estado as string)
   );
+  const enPausa = incidencias.filter((i) => i.estado === "en_pausa");
 
   const ultimoHistorialId =
     historialEstados.length > 0
       ? historialEstados[historialEstados.length - 1].id
       : null;
+
+  // Dataset filtrado para las cards según el tab
+  const incidenciasFiltradas = useMemo(() => {
+    switch (filtro) {
+      case "abiertas":
+        return abiertas;
+      case "en_pausa":
+        return enPausa;
+      case "en_espera_info":
+        return enEsperaInfo;
+      case "cerradas":
+        return cerradas;
+      case "todas":
+      default:
+        return incidencias;
+    }
+  }, [filtro, incidencias, abiertas, enPausa, enEsperaInfo, cerradas]);
+
+  const renderListaIncidencias = (lista: IncidenciaUsuario[]) => {
+    if (lista.length === 0) {
+      return (
+        <Card>
+          <CardContent className="text-center py-8">
+            <CheckCircle className="mx-auto h-12 w-12 text-emerald-500 mb-4" />
+            <p className="text-gray-600">
+              No hay incidencias para este filtro.
+            </p>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {lista.map((inc) => (
+          <Card
+            key={inc.id}
+            className="hover:shadow-md transition-shadow cursor-pointer"
+            onClick={() => abrirDetalle(inc)}
+          >
+            <CardContent className="pt-6">
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex-1">
+                  <h3 className="font-semibold text-lg mb-2">
+                    {inc.titulo}
+                  </h3>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {/* Área */}
+                    <Badge variant="outline">
+                      <MapPin className="w-3 h-3 mr-1" />
+                      {inc.areas?.nombre || "Sin área"}
+                    </Badge>
+
+                    {/* Clasificaciones múltiples o simple */}
+                    {inc.incidencia_clasificaciones &&
+                    inc.incidencia_clasificaciones.length > 0 ? (
+                      inc.incidencia_clasificaciones.map((rel) => (
+                        <Badge
+                          key={rel.id}
+                          variant="outline"
+                          style={{
+                            borderColor:
+                              rel.clasificaciones?.color || "#6B7280",
+                            color:
+                              rel.clasificaciones?.color || "#374151",
+                          }}
+                        >
+                          {rel.clasificaciones?.nombre}
+                        </Badge>
+                      ))
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        style={{
+                          borderColor:
+                            inc.clasificaciones?.color || "#6B7280",
+                          color: inc.clasificaciones?.color || "#374151",
+                        }}
+                      >
+                        {inc.clasificaciones?.nombre || "Sin clasificación"}
+                      </Badge>
+                    )}
+
+                    {/* Prioridad */}
+                    <Badge
+                      className={`text-white ${getPrioridadColor(
+                        inc.prioridad
+                      )}`}
+                    >
+                      <AlertTriangle className="w-3 h-3 mr-1" />
+                      {inc.prioridad}
+                    </Badge>
+
+                    {/* Estado */}
+                    <Badge
+                      variant="outline"
+                      className={`capitalize ${getEstadoBadgeClasses(
+                        inc.estado as string
+                      )}`}
+                    >
+                      {formatEstado(inc.estado as string)}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="text-right text-sm text-gray-500">
+                  <p className="flex items-center gap-1 justify-end">
+                    <Calendar className="w-3 h-3" />
+                    Reportada: {formatFechaHora(inc.fecha_incidencia)}
+                  </p>
+                  <p className="flex items-center gap-1 mt-1 justify-end">
+                    <Clock className="w-3 h-3" />
+                    Creada: {formatFecha(inc.created_at)}
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-gray-700 mb-3 line-clamp-2">
+                {inc.descripcion}
+              </p>
+
+              {inc.observaciones && (
+                <div className="bg-slate-50 p-3 rounded-lg mb-3 text-sm">
+                  <strong>Observaciones:</strong> {inc.observaciones}
+                </div>
+              )}
+
+              {typeof inc.tiempo_minutos === "number" && (
+                <div className="bg-blue-50 p-3 rounded-lg mb-3 text-sm">
+                  <strong>Tiempo estimado:</strong>{" "}
+                  {inc.tiempo_minutos} minutos
+                </div>
+              )}
+
+              {/* Botones eliminar / reabrir */}
+              <div className="pt-3 border-t flex flex-wrap gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-emerald-500 text-emerald-700 hover:bg-emerald-50"
+                  disabled={!puedeReabrir(inc)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!puedeReabrir(inc)) return;
+                    abrirDialogoReabrir(inc);
+                  }}
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Reabrir incidencia
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-rose-500 text-rose-600 hover:bg-rose-50"
+                  disabled={!puedeEliminar(inc)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!puedeEliminar(inc)) return;
+                    abrirDialogoEliminar(inc);
+                  }}
+                >
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Eliminar incidencia
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  };
 
   /* =========================================================
      Render
@@ -465,7 +758,7 @@ const HistorialIncidenciasView = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header + estadísticas */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -478,7 +771,7 @@ const HistorialIncidenciasView = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="flex flex-col gap-1">
               <span className="text-xs text-slate-500 uppercase">
                 Total reportadas
@@ -493,6 +786,14 @@ const HistorialIncidenciasView = () => {
               </span>
               <span className="text-2xl font-bold text-emerald-700">
                 {abiertas.length}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-violet-600 uppercase">
+                En pausa
+              </span>
+              <span className="text-2xl font-bold text-violet-700">
+                {enPausa.length}
               </span>
             </div>
             <div className="flex flex-col gap-1">
@@ -515,139 +816,40 @@ const HistorialIncidenciasView = () => {
         </CardContent>
       </Card>
 
-      {/* Lista de incidencias */}
-      {incidencias.length > 0 ? (
-        <div className="space-y-4">
-          {incidencias.map((inc) => (
-            <Card
-              key={inc.id}
-              className="hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => abrirDetalle(inc)}
-            >
-              <CardContent className="pt-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-lg mb-2">
-                      {inc.titulo}
-                    </h3>
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {/* Área */}
-                      <Badge variant="outline">
-                        <MapPin className="w-3 h-3 mr-1" />
-                        {inc.areas?.nombre || "Sin área"}
-                      </Badge>
+      {/* Filtros (tabs) + lista */}
+      <Tabs
+        value={filtro}
+        onValueChange={(val) =>
+          setFiltro(
+            val as "todas" | "abiertas" | "en_pausa" | "en_espera_info" | "cerradas"
+          )
+        }
+        className="w-full"
+      >
+        <TabsList className="grid w-full grid-cols-5 mb-4">
+          <TabsTrigger value="todas">Todas</TabsTrigger>
+          <TabsTrigger value="abiertas">Abiertas</TabsTrigger>
+          <TabsTrigger value="en_pausa">En pausa</TabsTrigger>
+          <TabsTrigger value="en_espera_info">En espera de info</TabsTrigger>
+          <TabsTrigger value="cerradas">Cerradas</TabsTrigger>
+        </TabsList>
 
-                      {/* Clasificaciones múltiples o simple */}
-                      {inc.incidencia_clasificaciones &&
-                      inc.incidencia_clasificaciones.length > 0 ? (
-                        inc.incidencia_clasificaciones.map((rel) => (
-                          <Badge
-                            key={rel.id}
-                            variant="outline"
-                            style={{
-                              borderColor:
-                                rel.clasificaciones?.color || "#6B7280",
-                              color: rel.clasificaciones?.color || "#374151",
-                            }}
-                          >
-                            {rel.clasificaciones?.nombre}
-                          </Badge>
-                        ))
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          style={{
-                            borderColor:
-                              inc.clasificaciones?.color || "#6B7280",
-                            color: inc.clasificaciones?.color || "#374151",
-                          }}
-                        >
-                          {inc.clasificaciones?.nombre || "Sin clasificación"}
-                        </Badge>
-                      )}
-
-                      {/* Prioridad */}
-                      <Badge
-                        className={`text-white ${getPrioridadColor(
-                          inc.prioridad
-                        )}`}
-                      >
-                        <AlertTriangle className="w-3 h-3 mr-1" />
-                        {inc.prioridad}
-                      </Badge>
-
-                      {/* Estado */}
-                      <Badge
-                        variant="outline"
-                        className={`capitalize ${getEstadoBadgeClasses(
-                          inc.estado as string
-                        )}`}
-                      >
-                        {formatEstado(inc.estado as string)}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div className="text-right text-sm text-gray-500">
-                    <p className="flex items-center gap-1 justify-end">
-                      <Calendar className="w-3 h-3" />
-                      Reportada: {formatFechaHora(inc.fecha_incidencia)}
-                    </p>
-                    <p className="flex items-center gap-1 mt-1 justify-end">
-                      <Clock className="w-3 h-3" />
-                      Creada: {formatFecha(inc.created_at)}
-                    </p>
-                  </div>
-                </div>
-
-                <p className="text-gray-700 mb-3 line-clamp-2">
-                  {inc.descripcion}
-                </p>
-
-                {inc.observaciones && (
-                  <div className="bg-slate-50 p-3 rounded-lg mb-3 text-sm">
-                    <strong>Observaciones:</strong> {inc.observaciones}
-                  </div>
-                )}
-
-                {typeof inc.tiempo_minutos === "number" && (
-                  <div className="bg-blue-50 p-3 rounded-lg mb-3 text-sm">
-                    <strong>Tiempo estimado:</strong>{" "}
-                    {inc.tiempo_minutos} minutos
-                  </div>
-                )}
-
-                {/* Botón eliminar (solo si aplica) */}
-                {puedeEliminar(inc) && (
-                  <div className="pt-3 border-t flex justify-end">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-rose-500 text-rose-600 hover:bg-rose-50"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        abrirDialogoEliminar(inc);
-                      }}
-                    >
-                      <XCircle className="w-4 h-4 mr-2" />
-                      Eliminar incidencia
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="text-center py-8">
-            <CheckCircle className="mx-auto h-12 w-12 text-emerald-500 mb-4" />
-            <p className="text-gray-600">
-              Aún no has registrado incidencias en el sistema.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+        <TabsContent value="todas" className="mt-0">
+          {renderListaIncidencias(incidenciasFiltradas)}
+        </TabsContent>
+        <TabsContent value="abiertas" className="mt-0">
+          {renderListaIncidencias(incidenciasFiltradas)}
+        </TabsContent>
+        <TabsContent value="en_pausa" className="mt-0">
+          {renderListaIncidencias(incidenciasFiltradas)}
+        </TabsContent>
+        <TabsContent value="en_espera_info" className="mt-0">
+          {renderListaIncidencias(incidenciasFiltradas)}
+        </TabsContent>
+        <TabsContent value="cerradas" className="mt-0">
+          {renderListaIncidencias(incidenciasFiltradas)}
+        </TabsContent>
+      </Tabs>
 
       {/* DIALOGO DETALLE / SEGUIMIENTO */}
       <Dialog
@@ -947,6 +1149,7 @@ const HistorialIncidenciasView = () => {
           setIsDeleteDialogOpen(open);
           if (!open) {
             setIncidenciaAEliminar(null);
+            setComentarioEliminacion("");
           }
         }}
       >
@@ -955,7 +1158,8 @@ const HistorialIncidenciasView = () => {
             <DialogTitle>Eliminar incidencia</DialogTitle>
             <DialogDescription>
               Esta acción ocultará la incidencia de tu historial. No se
-              eliminará físicamente del sistema por temas de auditoría.
+              eliminará físicamente del sistema por temas de auditoría. Debes
+              indicar el motivo.
             </DialogDescription>
           </DialogHeader>
 
@@ -971,6 +1175,18 @@ const HistorialIncidenciasView = () => {
               </p>
             </div>
           )}
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-800">
+              Comentario / justificación (obligatorio)
+            </label>
+            <Textarea
+              rows={4}
+              value={comentarioEliminacion}
+              onChange={(e) => setComentarioEliminacion(e.target.value)}
+              placeholder="Ejemplo: se creó por error, ya no aplica, se registró en el sistema equivocado, etc."
+            />
+          </div>
 
           <DialogFooter className="mt-4">
             <Button
@@ -993,6 +1209,80 @@ const HistorialIncidenciasView = () => {
                 <>
                   <XCircle className="w-4 h-4 mr-2" />
                   Confirmar eliminación
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOGO REABRIR INCIDENCIA */}
+      <Dialog
+        open={isReopenDialogOpen}
+        onOpenChange={(open) => {
+          setIsReopenDialogOpen(open);
+          if (!open) {
+            setIncidenciaAReabrir(null);
+            setComentarioReapertura("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reabrir incidencia</DialogTitle>
+            <DialogDescription>
+              La incidencia volverá al flujo de atención con estado{" "}
+              <span className="font-semibold">Reabierta</span>. Debes indicar
+              el motivo de la reapertura.
+            </DialogDescription>
+          </DialogHeader>
+
+          {incidenciaAReabrir && (
+            <div className="space-y-2 mb-4 text-sm">
+              <p>
+                <span className="font-semibold">Título:</span>{" "}
+                {incidenciaAReabrir.titulo}
+              </p>
+              <p>
+                <span className="font-semibold">Estado actual:</span>{" "}
+                {formatEstado(incidenciaAReabrir.estado as string)}
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-800">
+              Comentario / justificación (obligatorio)
+            </label>
+            <Textarea
+              rows={4}
+              value={comentarioReapertura}
+              onChange={(e) => setComentarioReapertura(e.target.value)}
+              placeholder="Ejemplo: el problema volvió a presentarse, no se solucionó completamente, se detectaron nuevos síntomas, etc."
+            />
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsReopenDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmarReapertura}
+              disabled={reabrirIncidencia.isPending}
+              className="bg-emerald-700 hover:bg-emerald-800 text-white"
+            >
+              {reabrirIncidencia.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Reabriendo...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Confirmar reapertura
                 </>
               )}
             </Button>

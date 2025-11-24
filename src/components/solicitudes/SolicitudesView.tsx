@@ -261,9 +261,73 @@ const useIncidencias = () => {
 interface IncidenciaCardProps {
   incidencia: Incidencia;
   onClick: (incidencia: Incidencia) => void;
+  perfilesPorId: Record<string, PerfilBasico>;
 }
 
-const IncidenciaCard = ({ incidencia, onClick }: IncidenciaCardProps) => {
+const IncidenciaCard = ({
+  incidencia,
+  onClick,
+  perfilesPorId,
+}: IncidenciaCardProps) => {
+  const reporterProfile =
+    incidencia.reportado_por &&
+    perfilesPorId[incidencia.reportado_por as string];
+
+  const responsableProfile =
+    incidencia.responsable_id &&
+    perfilesPorId[incidencia.responsable_id as string];
+
+  const getNombre = (
+    profile?: PerfilBasico,
+    fallbackId?: string | null,
+    fallbackTexto?: string
+  ) => {
+    if (profile?.full_name) return profile.full_name;
+    if (profile?.email) return profile.email;
+    if (fallbackId) return fallbackId;
+    return fallbackTexto ?? "Desconocido";
+  };
+
+  let etiqueta = "Reportado por:";
+  let nombre = "";
+
+  if (ESTADOS_RECHAZADAS.includes(incidencia.estado)) {
+    // Cards Rechazadas → "Rechazada por + su nombre"
+    etiqueta = "Rechazada por:";
+    nombre = getNombre(
+      responsableProfile,
+      incidencia.responsable_id,
+      "No asignado"
+    );
+  } else if (
+    incidencia.estado === ESTADOS.CERRADA ||
+    incidencia.estado === ESTADOS.RESUELTA
+  ) {
+    // Cards Cerradas → "Cerrada por + su nombre"
+    etiqueta = "Cerrada por:";
+    nombre = getNombre(
+      responsableProfile,
+      incidencia.responsable_id,
+      "No asignado"
+    );
+  } else if (ESTADOS_EN_EJECUCION.includes(incidencia.estado)) {
+    // Cards Asignadas / en ejecución → "Asignado a + su nombre"
+    etiqueta = "Asignado a:";
+    nombre = getNombre(
+      responsableProfile,
+      incidencia.responsable_id,
+      "No asignado"
+    );
+  } else {
+    // Cards Pendientes / Borrador → "Reportado por + nombre de quien reportó"
+    etiqueta = "Reportado por:";
+    nombre = getNombre(
+      reporterProfile,
+      incidencia.reportado_por,
+      "Sin reportante"
+    );
+  }
+
   return (
     <Card
       className="hover:shadow-md transition-shadow cursor-pointer border border-slate-200 hover:border-emerald-300"
@@ -330,7 +394,7 @@ const IncidenciaCard = ({ incidencia, onClick }: IncidenciaCardProps) => {
             </div>
           </div>
 
-          {/* Fecha + reportante */}
+          {/* Fecha + info de usuario (según estado) */}
           <div className="text-right text-xs sm:text-sm text-slate-500 space-y-1">
             {incidencia.fecha_incidencia && (
               <p className="flex items-center gap-1 justify-end">
@@ -340,9 +404,9 @@ const IncidenciaCard = ({ incidencia, onClick }: IncidenciaCardProps) => {
             )}
             <p className="flex items-center gap-1 justify-end">
               <User className="w-3 h-3" />
-              {incidencia.reportado_por
-                ? `Reportado por: ${incidencia.reportado_por}`
-                : "Sin reportante"}
+              <span>
+                {etiqueta} {nombre}
+              </span>
             </p>
           </div>
         </div>
@@ -749,6 +813,7 @@ export const SolicitudesView = () => {
                   key={inc.id}
                   incidencia={inc}
                   onClick={handleOpenDetail}
+                  perfilesPorId={perfilesPorId}
                 />
               ))}
             </div>
@@ -763,6 +828,7 @@ export const SolicitudesView = () => {
                 key={inc.id}
                 incidencia={inc}
                 onClick={handleOpenDetail}
+                perfilesPorId={perfilesPorId}
               />
             ))}
           </div>
@@ -776,6 +842,7 @@ export const SolicitudesView = () => {
                 key={inc.id}
                 incidencia={inc}
                 onClick={handleOpenDetail}
+                perfilesPorId={perfilesPorId}
               />
             ))}
           </div>
@@ -789,6 +856,7 @@ export const SolicitudesView = () => {
                 key={inc.id}
                 incidencia={inc}
                 onClick={handleOpenDetail}
+                perfilesPorId={perfilesPorId}
               />
             ))}
           </div>
@@ -802,6 +870,7 @@ export const SolicitudesView = () => {
                 key={inc.id}
                 incidencia={inc}
                 onClick={handleOpenDetail}
+                perfilesPorId={perfilesPorId}
               />
             ))}
           </div>

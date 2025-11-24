@@ -37,13 +37,11 @@ import {
 
 import {
   CheckCircle,
-  XCircle,
   Clock,
   User,
   Calendar,
   MapPin,
   AlertTriangle,
-  MessageCircle,
   ListChecks,
 } from "lucide-react";
 
@@ -119,7 +117,7 @@ interface HistorialEstado {
   fecha_cambio: string;
 }
 
-// Colores de prioridad (mantenemos semáforo pero más pulido)
+// Colores de prioridad (semáforo)
 const getPrioridadColor = (prioridad: Prioridad | string) => {
   switch (prioridad) {
     case "critica":
@@ -148,20 +146,18 @@ const MisIncidenciasAsignadasView = () => {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
 
-  const [processingId, setProcessingId] = useState<string | null>(null);
-
-  // Comentario
-  const [isCommentDialogOpen, setIsCommentDialogOpen] = useState(false);
-  const [incidenciaComentario, setIncidenciaComentario] =
-    useState<IncidenciaAsignada | null>(null);
-  const [comentarioTexto, setComentarioTexto] = useState("");
-
   // Seguimiento / cambio de estado
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [incidenciaSeguimiento, setIncidenciaSeguimiento] =
     useState<IncidenciaAsignada | null>(null);
   const [nuevoEstado, setNuevoEstado] = useState<string>("");
   const [comentarioEstado, setComentarioEstado] = useState("");
+
+  // Cierre de incidencia (comentario obligatorio)
+  const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
+  const [incidenciaCerrar, setIncidenciaCerrar] =
+    useState<IncidenciaAsignada | null>(null);
+  const [comentarioCierre, setComentarioCierre] = useState("");
 
   if (!profile) {
     return (
@@ -271,48 +267,27 @@ const MisIncidenciasAsignadasView = () => {
      Mutaciones
      ========================================================= */
 
-  // Guardar comentario
-  const comentarIncidencia = useMutation({
+  // Cerrar incidencia (desde botón externo, con comentario)
+  const cerrarIncidencia = useMutation({
     mutationFn: async (params: {
       incidenciaId: string;
       comentario: string;
     }) => {
       const { incidenciaId, comentario } = params;
-      const { error } = await supabase
-        .from("incidencias")
-        .update({
-          observaciones: comentario,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", incidenciaId)
-        .eq("responsable_id", profile.id);
 
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Comentario guardado correctamente");
-      setIsCommentDialogOpen(false);
-      setIncidenciaComentario(null);
-      setComentarioTexto("");
-      queryClient.invalidateQueries({
-        queryKey: ["incidencias-asignadas", profile.id],
-      });
-    },
-    onError: (error) => {
-      console.error("Error comentando incidencia:", error);
-      toast.error("Error al guardar el comentario");
-    },
-  });
+      if (!comentario.trim()) {
+        throw new Error(
+          "Debes ingresar un comentario para cerrar la incidencia."
+        );
+      }
 
-  // Rechazar incidencia
-  const rechazarIncidencia = useMutation({
-    mutationFn: async ({ incidenciaId }: { incidenciaId: string }) => {
       const now = new Date().toISOString();
 
       const { error: updateError } = await supabase
         .from("incidencias")
         .update({
-          estado: "rechazada",
+          estado: "cerrada",
+          observaciones: comentario,
           updated_at: now,
         })
         .eq("id", incidenciaId)
@@ -326,8 +301,8 @@ const MisIncidenciasAsignadasView = () => {
         .insert([
           {
             incidencia_id: incidenciaId,
-            estado: "rechazada",
-            comentario: "Incidencia rechazada por el técnico responsable",
+            estado: "cerrada",
+            comentario,
             cambiado_por: profile.id,
             fecha_cambio: now,
           },
@@ -335,78 +310,24 @@ const MisIncidenciasAsignadasView = () => {
 
       if (histError) throw histError;
     },
-    onSuccess: () => {
-      toast.success("Incidencia rechazada");
-      setProcessingId(null);
+    onSuccess: (_data, variables) => {
+      toast.success("Incidencia cerrada correctamente");
+      setIsCloseDialogOpen(false);
+      setIncidenciaCerrar(null);
+      setComentarioCierre("");
       queryClient.invalidateQueries({
         queryKey: ["incidencias-asignadas", profile.id],
       });
-    },
-    onError: (error) => {
-      console.error("Error rechazando incidencia:", error);
-      toast.error("Error al rechazar la incidencia");
-      setProcessingId(null);
-    },
-  });
-
-  // Cerrar incidencia
-  const cerrarIncidencia = useMutation({
-    mutationFn: async ({ incidencia }: { incidencia: IncidenciaAsignada }) => {
-      const tieneComentario =
-        incidencia.observaciones &&
-        incidencia.observaciones.toString().trim().length > 0;
-      const tieneEvidencia =
-        incidencia.imagenes_incidencias &&
-        incidencia.imagenes_incidencias.length > 0;
-
-      if (!tieneComentario && !tieneEvidencia) {
-        throw new Error(
-          "Debes agregar al menos un comentario o evidencia para cerrar la incidencia."
-        );
-      }
-
-      const now = new Date().toISOString();
-
-      const { error: updateError } = await supabase
-        .from("incidencias")
-        .update({
-          estado: "cerrada",
-          updated_at: now,
-        })
-        .eq("id", incidencia.id)
-        .eq("responsable_id", profile.id)
-        .neq("estado", "cerrada");
-
-      if (updateError) throw updateError;
-
-      const { error: histError } = await supabase
-        .from("incidencia_historial_estados")
-        .insert([
-          {
-            incidencia_id: incidencia.id,
-            estado: "cerrada",
-            comentario: "Incidencia cerrada por el técnico responsable",
-            cambiado_por: profile.id,
-            fecha_cambio: now,
-          },
-        ]);
-
-      if (histError) throw histError;
-    },
-    onSuccess: () => {
-      toast.success("Incidencia cerrada correctamente");
-      setProcessingId(null);
       queryClient.invalidateQueries({
-        queryKey: ["incidencias-asignadas", profile.id],
+        queryKey: ["historial-incidencia", variables.incidenciaId],
       });
     },
     onError: (error: any) => {
       console.error("Error cerrando incidencia:", error);
       toast.error(
         error?.message ||
-          "Error al cerrar la incidencia. Verifica los requisitos."
+          "Error al cerrar la incidencia. Verifica los datos."
       );
-      setProcessingId(null);
     },
   });
 
@@ -425,6 +346,13 @@ const MisIncidenciasAsignadasView = () => {
       if (!comentario.trim()) {
         throw new Error(
           "Debes ingresar un comentario para el cambio de estado."
+        );
+      }
+
+      // OJO: aquí no permitimos 'cerrada', solo estados intermedios
+      if (estado === "cerrada") {
+        throw new Error(
+          "El estado 'Cerrada' solo puede aplicarse desde el botón Cerrar incidencia."
         );
       }
 
@@ -521,7 +449,7 @@ const MisIncidenciasAsignadasView = () => {
       case "rechazada":
         return (
           <Badge className="border border-red-500 bg-red-50 text-red-700 flex items-center">
-            <XCircle className="w-3 h-3 mr-1 text-red-600" />
+            {/* Aunque ya no tengas botón Rechazar aquí, mantenemos el badge */}
             Rechazada
           </Badge>
         );
@@ -532,30 +460,6 @@ const MisIncidenciasAsignadasView = () => {
           </Badge>
         );
     }
-  };
-
-  const abrirDialogoComentario = (incidencia: IncidenciaAsignada) => {
-    setIncidenciaComentario(incidencia);
-    setComentarioTexto(incidencia.observaciones || "");
-    setIsCommentDialogOpen(true);
-  };
-
-  const handleGuardarComentario = () => {
-    if (!incidenciaComentario) return;
-    comentarIncidencia.mutate({
-      incidenciaId: incidenciaComentario.id,
-      comentario: comentarioTexto.trim(),
-    });
-  };
-
-  const handleRechazar = (incidencia: IncidenciaAsignada) => {
-    setProcessingId(incidencia.id);
-    rechazarIncidencia.mutate({ incidenciaId: incidencia.id });
-  };
-
-  const handleCerrar = (incidencia: IncidenciaAsignada) => {
-    setProcessingId(incidencia.id);
-    cerrarIncidencia.mutate({ incidencia });
   };
 
   const abrirDialogoSeguimiento = (incidencia: IncidenciaAsignada) => {
@@ -571,6 +475,20 @@ const MisIncidenciasAsignadasView = () => {
       incidenciaId: incidenciaSeguimiento.id,
       estado: nuevoEstado,
       comentario: comentarioEstado.trim(),
+    });
+  };
+
+  const abrirDialogoCerrar = (incidencia: IncidenciaAsignada) => {
+    setIncidenciaCerrar(incidencia);
+    setComentarioCierre("");
+    setIsCloseDialogOpen(true);
+  };
+
+  const handleConfirmarCierre = () => {
+    if (!incidenciaCerrar) return;
+    cerrarIncidencia.mutate({
+      incidenciaId: incidenciaCerrar.id,
+      comentario: comentarioCierre.trim(),
     });
   };
 
@@ -620,7 +538,7 @@ const MisIncidenciasAsignadasView = () => {
                 Total: {incidencias.length}
               </Badge>
               <Badge className="bg-amber-50 text-amber-800 border border-amber-200">
-                Pendientes: {pendientes.length}
+                Abiertas: {pendientes.length}
               </Badge>
               <Badge className="bg-slate-50 text-slate-800 border border-slate-200">
                 Cerradas: {cerradas.length}
@@ -784,17 +702,8 @@ const MisIncidenciasAsignadasView = () => {
                     </div>
                   )}
 
-                {/* Botones de acción */}
+                {/* Botones de acción: SOLO seguimiento y cerrar */}
                 <div className="flex flex-col md:flex-row gap-2 pt-4 border-t border-slate-200">
-                  <Button
-                    variant="outline"
-                    className="flex-1 border-slate-300 text-slate-800 hover:border-emerald-400 hover:bg-emerald-50"
-                    onClick={() => abrirDialogoComentario(incidencia)}
-                  >
-                    <MessageCircle className="w-4 h-4 mr-2" />
-                    Comentar / actualizar observaciones
-                  </Button>
-
                   <Button
                     variant="outline"
                     className="flex-1 border-slate-300 text-slate-800 hover:border-emerald-400 hover:bg-emerald-50"
@@ -805,35 +714,12 @@ const MisIncidenciasAsignadasView = () => {
                   </Button>
 
                   <Button
-                    variant="outline"
-                    className="flex-1 border-red-500 text-red-600 hover:bg-red-50"
-                    disabled={
-                      processingId === incidencia.id ||
-                      incidencia.estado === "cerrada"
-                    }
-                    onClick={() => handleRechazar(incidencia)}
-                  >
-                    <XCircle className="w-4 h-4 mr-2" />
-                    {processingId === incidencia.id &&
-                    rechazarIncidencia.isPending
-                      ? "Rechazando..."
-                      : "Rechazar"}
-                  </Button>
-
-                  <Button
                     className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white"
-                    disabled={
-                      processingId === incidencia.id ||
-                      incidencia.estado === "cerrada" ||
-                      incidencia.estado === "rechazada"
-                    }
-                    onClick={() => handleCerrar(incidencia)}
+                    disabled={incidencia.estado === "cerrada"}
+                    onClick={() => abrirDialogoCerrar(incidencia)}
                   >
                     <CheckCircle className="w-4 h-4 mr-2" />
-                    {processingId === incidencia.id &&
-                    cerrarIncidencia.isPending
-                      ? "Cerrando..."
-                      : "Cerrar incidencia"}
+                    Cerrar incidencia
                   </Button>
                 </div>
               </CardContent>
@@ -850,79 +736,6 @@ const MisIncidenciasAsignadasView = () => {
           </CardContent>
         </Card>
       )}
-
-      {/* DIALOGO COMENTARIO */}
-      <Dialog
-        open={isCommentDialogOpen}
-        onOpenChange={(open) => {
-          setIsCommentDialogOpen(open);
-          if (!open) {
-            setIncidenciaComentario(null);
-            setComentarioTexto("");
-          }
-        }}
-      >
-        <DialogContent className="max-w-lg border border-emerald-100">
-          <DialogHeader>
-            <DialogTitle className="text-emerald-900">
-              Agregar / actualizar comentario
-            </DialogTitle>
-            <DialogDescription className="text-slate-600">
-              Registra una nota técnica o detalle de las acciones realizadas
-              sobre la incidencia.
-            </DialogDescription>
-          </DialogHeader>
-
-          {incidenciaComentario && (
-            <div className="space-y-2 mb-4 text-sm bg-emerald-50 border border-emerald-100 rounded-lg p-3">
-              <p className="text-emerald-900">
-                <span className="font-semibold">Título:</span>{" "}
-                {incidenciaComentario.titulo}
-              </p>
-              <p className="text-emerald-900">
-                <span className="font-semibold">Área:</span>{" "}
-                {incidenciaComentario.areas?.nombre || "Sin área"}
-              </p>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-800">
-              Comentario / Observaciones técnicas
-            </label>
-            <Textarea
-              rows={5}
-              value={comentarioTexto}
-              onChange={(e) => setComentarioTexto(e.target.value)}
-              placeholder="Describe el diagnóstico, acciones realizadas, hallazgos, etc."
-              className="border-slate-300 focus-visible:ring-emerald-500"
-            />
-            <p className="text-xs text-slate-500">
-              Este comentario se usará también para validar el cierre de la
-              incidencia.
-            </p>
-          </div>
-
-          <DialogFooter className="mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setIsCommentDialogOpen(false)}
-              className="border-slate-300 text-slate-700 hover:bg-slate-50"
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleGuardarComentario}
-              disabled={comentarIncidencia.isPending}
-              className="bg-emerald-700 hover:bg-emerald-800 text-white"
-            >
-              {comentarIncidencia.isPending
-                ? "Guardando..."
-                : "Guardar comentario"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* DIALOGO SEGUIMIENTO / CAMBIO DE ESTADO */}
       <Dialog
@@ -1049,12 +862,12 @@ const MisIncidenciasAsignadasView = () => {
                         <SelectValue placeholder="Selecciona un estado" />
                       </SelectTrigger>
                       <SelectContent>
+                        {/* NO incluimos 'cerrada' aquí, eso se hace desde el botón Cerrar incidencia */}
                         <SelectItem value="en_curso">En curso</SelectItem>
                         <SelectItem value="en_pausa">En pausa</SelectItem>
                         <SelectItem value="en_espera_info">
                           En espera de información
                         </SelectItem>
-                        <SelectItem value="cerrada">Cerrada</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1096,6 +909,83 @@ const MisIncidenciasAsignadasView = () => {
               {actualizarEstadoIncidencia.isPending
                 ? "Guardando..."
                 : "Guardar cambio de estado"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOGO CIERRE DE INCIDENCIA */}
+      <Dialog
+        open={isCloseDialogOpen}
+        onOpenChange={(open) => {
+          setIsCloseDialogOpen(open);
+          if (!open) {
+            setIncidenciaCerrar(null);
+            setComentarioCierre("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg border border-emerald-100">
+          <DialogHeader>
+            <DialogTitle className="text-emerald-900">
+              Cerrar incidencia
+            </DialogTitle>
+            <DialogDescription className="text-slate-600">
+              Añade un comentario de cierre que justifique la finalización de la
+              incidencia.
+            </DialogDescription>
+          </DialogHeader>
+
+          {incidenciaCerrar && (
+            <div className="space-y-2 mb-4 text-sm bg-emerald-50 border border-emerald-100 rounded-lg p-3">
+              <p className="text-emerald-900">
+                <span className="font-semibold">Título:</span>{" "}
+                {incidenciaCerrar.titulo}
+              </p>
+              <p className="text-emerald-900">
+                <span className="font-semibold">Área:</span>{" "}
+                {incidenciaCerrar.areas?.nombre || "Sin área"}
+              </p>
+              <p className="text-emerald-900">
+                <span className="font-semibold">Estado actual:</span>{" "}
+                {incidenciaCerrar.estado}
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-800">
+              Comentario de cierre (obligatorio)
+            </label>
+            <Textarea
+              rows={5}
+              value={comentarioCierre}
+              onChange={(e) => setComentarioCierre(e.target.value)}
+              placeholder="Describe el diagnóstico final, solución aplicada o motivo del cierre."
+              className="border-slate-300 focus-visible:ring-emerald-500"
+            />
+            <p className="text-xs text-slate-500">
+              Este comentario se registrará en el historial de la incidencia y
+              en las observaciones.
+            </p>
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsCloseDialogOpen(false)}
+              className="border-slate-300 text-slate-700 hover:bg-slate-50"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirmarCierre}
+              disabled={cerrarIncidencia.isPending}
+              className="bg-emerald-700 hover:bg-emerald-800 text-white"
+            >
+              {cerrarIncidencia.isPending
+                ? "Cerrando..."
+                : "Confirmar cierre"}
             </Button>
           </DialogFooter>
         </DialogContent>
