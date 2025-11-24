@@ -242,6 +242,7 @@ const useIncidencias = () => {
           )
         `
         )
+        .eq("visible", true)
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -746,7 +747,7 @@ export const SolicitudesView = () => {
             <div>
               <CardTitle className="text-sm font-medium text-slate-900">
                 Rechazadas
-              </CardTitle>
+             </CardTitle>
               <CardDescription className="text-xs text-slate-600">
                 Incidencias descartadas
               </CardDescription>
