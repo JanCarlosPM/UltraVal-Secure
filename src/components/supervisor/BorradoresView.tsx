@@ -177,10 +177,11 @@ const BorradoresView = () => {
   const [responsableSeleccionado, setResponsableSeleccionado] =
     useState<string>("");
 
-  // estado para rechazar (confirm dialog)
+  // estado para rechazar (confirm dialog + comentario)
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [incidenciaARechazar, setIncidenciaARechazar] =
     useState<IncidenciaPendiente | null>(null);
+  const [comentarioRechazo, setComentarioRechazo] = useState("");
 
   // Verificar permisos (solo supervisor_monitoreo y admin)
   if (
@@ -340,15 +341,30 @@ const BorradoresView = () => {
     },
   });
 
-  // Rechazar incidencia (desde pendiente) + historial
+  // Rechazar incidencia (desde pendiente) + historial con comentario obligatorio
   const rechazarIncidencia = useMutation({
-    mutationFn: async ({ incidenciaId }: { incidenciaId: string }) => {
+    mutationFn: async (params: {
+      incidenciaId: string;
+      comentario: string;
+    }) => {
+      const { incidenciaId, comentario } = params;
+
+      if (!comentario.trim()) {
+        throw new Error(
+          "Debes ingresar un comentario para rechazar la incidencia."
+        );
+      }
+
       const now = new Date().toISOString();
 
       // 1) actualizar incidencia
       const { error: updateError } = await supabase
         .from("incidencias")
-        .update({ estado: "rechazado" })
+        .update({
+          estado: "rechazado",
+          observaciones: comentario,
+          updated_at: now,
+        })
         .eq("id", incidenciaId)
         .eq("estado", "pendiente");
 
@@ -361,7 +377,7 @@ const BorradoresView = () => {
           {
             incidencia_id: incidenciaId,
             estado: "rechazado",
-            comentario: "Incidencia rechazada por supervisor",
+            comentario,
             cambiado_por: profile?.id ?? null,
             fecha_cambio: now,
           },
@@ -374,11 +390,14 @@ const BorradoresView = () => {
       queryClient.invalidateQueries({ queryKey: ["incidencias-borradores"] });
       setProcessingId(null);
       setIncidenciaARechazar(null);
+      setComentarioRechazo("");
       setIsRejectDialogOpen(false);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Error rechazando incidencia:", error);
-      toast.error("Error al procesar la incidencia");
+      toast.error(
+        error?.message || "Error al procesar la incidencia al rechazarla"
+      );
       setProcessingId(null);
     },
   });
@@ -465,13 +484,21 @@ const BorradoresView = () => {
 
   const openRejectDialog = (incidencia: IncidenciaPendiente) => {
     setIncidenciaARechazar(incidencia);
+    setComentarioRechazo("");
     setIsRejectDialogOpen(true);
   };
 
   const handleConfirmReject = () => {
     if (!incidenciaARechazar) return;
+    if (!comentarioRechazo.trim()) {
+      toast.error("Debes ingresar un comentario de rechazo.");
+      return;
+    }
     setProcessingId(incidenciaARechazar.id);
-    rechazarIncidencia.mutate({ incidenciaId: incidenciaARechazar.id });
+    rechazarIncidencia.mutate({
+      incidenciaId: incidenciaARechazar.id,
+      comentario: comentarioRechazo.trim(),
+    });
   };
 
   const openAssignDialog = (incidencia: IncidenciaPendiente) => {
@@ -1013,6 +1040,7 @@ const BorradoresView = () => {
           setIsRejectDialogOpen(open);
           if (!open) {
             setIncidenciaARechazar(null);
+            setComentarioRechazo("");
             setProcessingId(null);
           }
         }}
@@ -1021,8 +1049,7 @@ const BorradoresView = () => {
           <DialogHeader>
             <DialogTitle>Rechazar incidencia</DialogTitle>
             <DialogDescription>
-              ¿Estás seguro de que deseas rechazar esta incidencia? Esta acción
-              no se puede deshacer.
+              Indica el motivo del rechazo. Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
 
@@ -1041,6 +1068,18 @@ const BorradoresView = () => {
               </p>
             </div>
           )}
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-800">
+              Comentario de rechazo (obligatorio)
+            </label>
+            <Textarea
+              rows={4}
+              value={comentarioRechazo}
+              onChange={(e) => setComentarioRechazo(e.target.value)}
+              placeholder="Ejemplo: incidencia duplicada, no corresponde al área, información insuficiente, etc."
+            />
+          </div>
 
           <DialogFooter className="mt-4">
             <Button
