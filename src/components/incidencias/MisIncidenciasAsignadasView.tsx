@@ -68,7 +68,8 @@ type EstadoTecnico =
   | "en_pausa"
   | "en_espera_info"
   | "cerrada"
-  | "rechazada";
+  | "rechazada"
+  | "reasignar"; // <-- NUEVO ESTADO
 
 interface AreaLite {
   nombre: string;
@@ -211,6 +212,7 @@ const MisIncidenciasAsignadasView = () => {
           "en_espera_info",
           "cerrada",
           "rechazada",
+          "reasignar", // <-- incluir también las reasignadas
         ])
         .order("created_at", { ascending: false });
 
@@ -349,7 +351,7 @@ const MisIncidenciasAsignadasView = () => {
         );
       }
 
-      // OJO: aquí no permitimos 'cerrada', solo estados intermedios
+      // El cierre sigue siendo desde el botón dedicado
       if (estado === "cerrada") {
         throw new Error(
           "El estado 'Cerrada' solo puede aplicarse desde el botón Cerrar incidencia."
@@ -449,8 +451,14 @@ const MisIncidenciasAsignadasView = () => {
       case "rechazada":
         return (
           <Badge className="border border-red-500 bg-red-50 text-red-700 flex items-center">
-            {/* Aunque ya no tengas botón Rechazar aquí, mantenemos el badge */}
             Rechazada
+          </Badge>
+        );
+      case "reasignar":
+        return (
+          <Badge className="border border-sky-500 bg-sky-50 text-sky-800 flex items-center">
+            {/* puedes cambiar el icono si querés */}
+            Reasignación solicitada
           </Badge>
         );
       default:
@@ -702,7 +710,7 @@ const MisIncidenciasAsignadasView = () => {
                     </div>
                   )}
 
-                {/* Botones de acción: SOLO seguimiento y cerrar */}
+                {/* Botones de acción */}
                 <div className="flex flex-col md:flex-row gap-2 pt-4 border-t border-slate-200">
                   <Button
                     variant="outline"
@@ -868,6 +876,9 @@ const MisIncidenciasAsignadasView = () => {
                         <SelectItem value="en_espera_info">
                           En espera de información
                         </SelectItem>
+                        <SelectItem value="reasignar">
+                          Solicitar reasignación
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -880,7 +891,7 @@ const MisIncidenciasAsignadasView = () => {
                       rows={3}
                       value={comentarioEstado}
                       onChange={(e) => setComentarioEstado(e.target.value)}
-                      placeholder="Describe el motivo del cambio de estado, acciones realizadas, bloqueos, etc."
+                      placeholder="Describe el motivo del cambio de estado, acciones realizadas, bloqueos, etc. Si solicitas reasignar, indica el motivo."
                       className="border-slate-300 focus-visible:ring-emerald-500"
                     />
                     <p className="text-[11px] text-slate-500">

@@ -489,11 +489,9 @@ const HistorialIncidenciasView = () => {
   const puedeComentar =
     selectedIncidencia && selectedIncidencia.estado === "en_espera_info";
 
-  // Eliminar solo mientras la incidencia no ha entrado al flujo (pendiente/borrador)
   const puedeEliminar = (inc: IncidenciaUsuario) =>
     ["pendiente", "borrador"].includes(inc.estado as string);
 
-  // Reabrir solo cuando ya está cerrada
   const puedeReabrir = (inc: IncidenciaUsuario) =>
     inc.estado === "cerrada";
 
@@ -565,7 +563,6 @@ const HistorialIncidenciasView = () => {
       ? historialEstados[historialEstados.length - 1].id
       : null;
 
-  // Dataset filtrado para las cards según el tab
   const incidenciasFiltradas = useMemo(() => {
     switch (filtro) {
       case "abiertas":
@@ -611,13 +608,11 @@ const HistorialIncidenciasView = () => {
                     {inc.titulo}
                   </h3>
                   <div className="flex flex-wrap gap-2 mb-3">
-                    {/* Área */}
                     <Badge variant="outline">
                       <MapPin className="w-3 h-3 mr-1" />
                       {inc.areas?.nombre || "Sin área"}
                     </Badge>
 
-                    {/* Clasificaciones múltiples o simple */}
                     {inc.incidencia_clasificaciones &&
                     inc.incidencia_clasificaciones.length > 0 ? (
                       inc.incidencia_clasificaciones.map((rel) => (
@@ -647,7 +642,6 @@ const HistorialIncidenciasView = () => {
                       </Badge>
                     )}
 
-                    {/* Prioridad */}
                     <Badge
                       className={`text-white ${getPrioridadColor(
                         inc.prioridad
@@ -657,7 +651,6 @@ const HistorialIncidenciasView = () => {
                       {inc.prioridad}
                     </Badge>
 
-                    {/* Estado */}
                     <Badge
                       variant="outline"
                       className={`capitalize ${getEstadoBadgeClasses(
@@ -698,7 +691,6 @@ const HistorialIncidenciasView = () => {
                 </div>
               )}
 
-              {/* Botones eliminar / reabrir */}
               <div className="pt-3 border-t flex flex-wrap gap-2 justify-end">
                 <Button
                   variant="outline"
@@ -868,7 +860,6 @@ const HistorialIncidenciasView = () => {
                 </DialogDescription>
               </DialogHeader>
 
-              {/* Header con badges */}
               <div className="mt-2 mb-4 border rounded-lg p-3 bg-slate-50">
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
                   <div className="flex flex-wrap gap-2">
@@ -912,7 +903,6 @@ const HistorialIncidenciasView = () => {
                 </div>
               </div>
 
-              {/* Tabs internas */}
               <Tabs defaultValue="resumen" className="w-full">
                 <TabsList className="grid w-full grid-cols-3 mb-4">
                   <TabsTrigger value="resumen">Resumen</TabsTrigger>
@@ -920,7 +910,6 @@ const HistorialIncidenciasView = () => {
                   <TabsTrigger value="evidencias">Evidencias</TabsTrigger>
                 </TabsList>
 
-                {/* RESUMEN */}
                 <TabsContent value="resumen" className="space-y-4">
                   <Card>
                     <CardHeader>
@@ -967,7 +956,6 @@ const HistorialIncidenciasView = () => {
                   )}
                 </TabsContent>
 
-                {/* SEGUIMIENTO */}
                 <TabsContent value="seguimiento" className="space-y-4">
                   <Card>
                     <CardHeader>
@@ -1032,7 +1020,6 @@ const HistorialIncidenciasView = () => {
                     </CardContent>
                   </Card>
 
-                  {/* Comentario del usuario cuando está en espera de info */}
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-base flex items-center gap-2">
@@ -1085,7 +1072,6 @@ const HistorialIncidenciasView = () => {
                   </Card>
                 </TabsContent>
 
-                {/* EVIDENCIAS */}
                 <TabsContent value="evidencias" className="space-y-4">
                   <Card>
                     <CardHeader>
@@ -1176,6 +1162,7 @@ const HistorialIncidenciasView = () => {
             </div>
           )}
 
+          {/* AQUÍ ESTÁ EL CAMPO DE COMENTARIO ANTES DE ELIMINAR */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-800">
               Comentario / justificación (obligatorio)
