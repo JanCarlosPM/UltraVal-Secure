@@ -11,7 +11,8 @@ export interface IncidenciaData {
   area_id: string;
   clasificacion_id: string;
   prioridad: string;
-  reportado_por: string;
+  reportado_por: string;      // ya debería venir con el nombre, no el UUID
+  cerrado_por?: string;       // NUEVO: nombre/correo de quien la cerró
   fecha_incidencia: string;
   created_at: string;
   updated_at: string;
@@ -39,20 +40,20 @@ export const exportToPDF = (incidencias: IncidenciaData[], filtros: any) => {
   const footerHeight = 20;
   const headerHeight = 35;
 
-  // Colores corporativos (ajusta a tu branding)
+  // Colores corporativos tipo Ultraval
   const colors = {
-    primary: [20, 53, 147] as [number, number, number],      // Azul corporativo
-    secondary: [107, 114, 128] as [number, number, number],  // Gris texto
-    accent: [59, 130, 246] as [number, number, number],      // Azul acento
-    success: [16, 185, 129] as [number, number, number],
+    primary: [3, 84, 63] as [number, number, number],        // Verde oscuro
+    secondary: [71, 85, 105] as [number, number, number],    // Slate
+    accent: [234, 179, 8] as [number, number, number],       // Ámbar
+    success: [22, 163, 74] as [number, number, number],
     warning: [245, 158, 11] as [number, number, number],
-    danger: [239, 68, 68] as [number, number, number],
+    danger: [220, 38, 38] as [number, number, number],
     light: [248, 250, 252] as [number, number, number],
     white: [255, 255, 255] as [number, number, number]
   };
 
   const COMPANY_NAME = 'ULTRAVALORES S.A.';
-  const SYSTEM_NAME = 'Sistema de Monitoreo Corporativo';
+  const SYSTEM_NAME = 'Sistema de Monitoreo - ULTRAVAL Secure Desk';
 
   let currentPage = 1;
 
@@ -354,7 +355,8 @@ export const exportToPDF = (incidencias: IncidenciaData[], filtros: any) => {
       ['Área', inc.areas?.nombre || 'No especificada'],
       ['Clasificación', inc.clasificaciones?.nombre || 'No clasificada'],
       ['Prioridad', inc.prioridad.toUpperCase()],
-      ['Reportado por', inc.reportado_por],
+      ['Reportado por', inc.reportado_por || 'N/D'],
+      ['Cerrado por', inc.cerrado_por || 'N/D'], // NUEVO
       [
         'Fecha',
         format(new Date(inc.fecha_incidencia), 'dd/MM/yyyy HH:mm', {

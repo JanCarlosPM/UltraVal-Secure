@@ -33,7 +33,11 @@ import { es } from "date-fns/locale";
 import { exportToPDF } from "@/utils/pdfExport";
 import { toast } from "sonner";
 
-/* ================= Tipos simples para evitar el error de TS ================= */
+/* ================= Config / Constantes ================= */
+
+const SYSTEM_NAME = "Sistema de Monitoreo de Incidencias de Ultravalores S.A.";
+
+/* ================= Tipos simples ================= */
 
 interface ImagenIncidencia {
   id: string;
@@ -70,11 +74,13 @@ interface IncidenciaReporte {
   descripcion: string | null;
   observaciones: string | null;
   reportado_por: string | null;
+  cerrado_por: string | null;
   areas?: AreaLite | null;
   clasificaciones?: ClasificacionLite | null;
   salas?: SalaLite | null;
   imagenes_incidencias?: ImagenIncidencia[];
   reportado_por_profile?: PerfilLite | null;
+  cerrado_por_profile?: PerfilLite | null;
 }
 
 /* ========================================================================== */
@@ -184,14 +190,14 @@ const ReportesView = () => {
         );
       }
 
-      // Obtener información de perfiles para los usuarios reportadores
+      // Obtener información de perfiles (reportado y cerrado)
       const uniqueUserIds = [
         ...new Set(
           filteredData
-            .map((inc: any) => inc.reportado_por)
+            .flatMap((inc: any) => [inc.reportado_por, inc.cerrado_por])
             .filter((id: any) => id && id.length === 36)
         ),
-      ] as string[]; // Solo UUIDs válidos
+      ] as string[];
 
       let userProfiles: Record<string, PerfilLite> = {};
       if (uniqueUserIds.length > 0) {
@@ -216,6 +222,8 @@ const ReportesView = () => {
         ...incidencia,
         reportado_por_profile:
           userProfiles[incidencia.reportado_por as string] || null,
+        cerrado_por_profile:
+          userProfiles[incidencia.cerrado_por as string] || null,
       })) as IncidenciaReporte[];
     },
   });
@@ -247,6 +255,7 @@ const ReportesView = () => {
         "Clasificación",
         "Prioridad",
         "Reportado por",
+        "Cerrado por",
         "Fecha",
         "Descripción",
       ].join(","),
@@ -257,10 +266,11 @@ const ReportesView = () => {
           `"${inc.clasificaciones?.nombre || ""}"`,
           `"${inc.prioridad}"`,
           `"${inc.reportado_por_profile?.full_name || inc.reportado_por_profile?.email || inc.reportado_por}"`,
+          `"${inc.cerrado_por_profile?.full_name || inc.cerrado_por_profile?.email || inc.cerrado_por || ""}"`,
           `"${format(new Date(inc.fecha_incidencia), "dd/MM/yyyy HH:mm", {
             locale: es,
           })}"`,
-          `"${inc.descripcion}"`,
+          `"${inc.descripcion || ""}"`,
         ].join(",")
       ),
     ].join("\n");
@@ -285,31 +295,34 @@ const ReportesView = () => {
       return;
     }
 
-    // 👇 Aquí forzamos que el campo reportado_por lleve el nombre/correo,
-    // para que en el PDF NO aparezca el UUID.
-    const incidenciasConNombre = incidencias.map((inc) => ({
+    // Forzamos que reportado_por y cerrado_por lleven nombre/correo y no UUID
+    const incidenciasConNombres = incidencias.map((inc) => ({
       ...inc,
       reportado_por:
         inc.reportado_por_profile?.full_name ||
         inc.reportado_por_profile?.email ||
         inc.reportado_por,
+      cerrado_por:
+        inc.cerrado_por_profile?.full_name ||
+        inc.cerrado_por_profile?.email ||
+        inc.cerrado_por,
     }));
 
-    exportToPDF(incidenciasConNombre as any, filtros);
+    exportToPDF(incidenciasConNombres as any, filtros);
   };
 
   const getPrioridadColor = (prioridad: string) => {
     switch (prioridad.toLowerCase()) {
       case "critica":
-        return "text-red-600 bg-red-100";
+        return "text-red-700 bg-red-100";
       case "alta":
-        return "text-orange-600 bg-orange-100";
+        return "text-orange-700 bg-orange-100";
       case "media":
-        return "text-yellow-600 bg-yellow-100";
+        return "text-amber-700 bg-amber-100";
       case "baja":
-        return "text-green-600 bg-green-100";
+        return "text-emerald-700 bg-emerald-100";
       default:
-        return "text-gray-600 bg-gray-100";
+        return "text-slate-700 bg-slate-100";
     }
   };
 
@@ -317,56 +330,61 @@ const ReportesView = () => {
     <div className="container mx-auto px-4 py-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-emerald-900">
             Reportes de Incidencias
           </h1>
-          <p className="text-gray-600 mt-2">
-            Visualiza y exporta reportes detallados de incidencias
+          <p className="text-slate-600 mt-1 text-sm">
+            Módulo de reportes del{" "}
+            <span className="font-semibold">{SYSTEM_NAME}</span>
           </p>
         </div>
       </div>
 
       {/* Filtros */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <Card className="border border-emerald-100 shadow-sm">
+        <CardHeader className="border-b border-emerald-50 bg-emerald-50/40">
+          <CardTitle className="flex items-center gap-2 text-emerald-900">
             <Filter className="h-5 w-5" />
-            Filtros de Búsqueda
+            Filtros de búsqueda
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-slate-600">
             Aplica filtros para refinar tu búsqueda de incidencias
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="space-y-2">
-              <Label>Fecha Inicio</Label>
+              <Label className="text-sm text-slate-700">Fecha inicio</Label>
               <Input
                 type="date"
                 value={filtros.fechaInicio}
                 onChange={(e) =>
                   handleFiltroChange("fechaInicio", e.target.value)
                 }
+                className="border-slate-300 focus-visible:ring-emerald-500"
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Fecha Fin</Label>
+              <Label className="text-sm text-slate-700">Fecha fin</Label>
               <Input
                 type="date"
                 value={filtros.fechaFin}
-                onChange={(e) => handleFiltroChange("fechaFin", e.target.value)}
+                onChange={(e) =>
+                  handleFiltroChange("fechaFin", e.target.value)
+                }
+                className="border-slate-300 focus-visible:ring-emerald-500"
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Área</Label>
+              <Label className="text-sm text-slate-700">Área</Label>
               <Select
                 value={filtros.area}
                 onValueChange={(value) => handleFiltroChange("area", value)}
-                disabled={!isAdmin && !!userAreaName} // Deshabilitar si no es admin y tiene área específica
+                disabled={!isAdmin && !!userAreaName}
               >
-                <SelectTrigger>
+                <SelectTrigger className="border-slate-300 focus-visible:ring-emerald-500">
                   <SelectValue
                     placeholder={
                       !isAdmin && userAreaName
@@ -387,21 +405,21 @@ const ReportesView = () => {
                 </SelectContent>
               </Select>
               {!isAdmin && userAreaName && (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-slate-500">
                   Solo puedes ver incidencias de tu área: {userAreaName}
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label>Clasificación</Label>
+              <Label className="text-sm text-slate-700">Clasificación</Label>
               <Select
                 value={filtros.clasificacion}
                 onValueChange={(value) =>
                   handleFiltroChange("clasificacion", value)
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="border-slate-300 focus-visible:ring-emerald-500">
                   <SelectValue placeholder="Todas las clasificaciones" />
                 </SelectTrigger>
                 <SelectContent>
@@ -416,14 +434,14 @@ const ReportesView = () => {
             </div>
 
             <div className="space-y-2">
-              <Label>Prioridad</Label>
+              <Label className="text-sm text-slate-700">Prioridad</Label>
               <Select
                 value={filtros.prioridad}
                 onValueChange={(value) =>
                   handleFiltroChange("prioridad", value)
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="border-slate-300 focus-visible:ring-emerald-500">
                   <SelectValue placeholder="Todas las prioridades" />
                 </SelectTrigger>
                 <SelectContent>
@@ -437,20 +455,24 @@ const ReportesView = () => {
             </div>
           </div>
 
-          <div className="flex gap-2 mt-4">
-            <Button variant="outline" onClick={limpiarFiltros}>
-              Limpiar Filtros
+          <div className="flex flex-wrap gap-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={limpiarFiltros}
+              className="border-slate-300 text-slate-700 hover:bg-slate-50"
+            >
+              Limpiar filtros
             </Button>
             <Button
               onClick={exportarCSV}
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-emerald-700 hover:bg-emerald-800 text-white"
             >
               <Download className="w-4 h-4 mr-2" />
               Exportar CSV
             </Button>
             <Button
               onClick={exportarPDF}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-emerald-900 hover:bg-emerald-950 text-white"
             >
               <FileText className="w-4 h-4 mr-2" />
               Exportar PDF
@@ -460,43 +482,47 @@ const ReportesView = () => {
       </Card>
 
       {/* Resultados */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+      <Card className="border border-emerald-100 shadow-sm">
+        <CardHeader className="border-b border-emerald-50 bg-white">
+          <CardTitle className="flex items-center justify-between text-emerald-900">
             <div className="flex items-center gap-2">
               <Eye className="h-5 w-5" />
               Resultados
             </div>
-            <Badge variant="secondary">
+            <Badge className="bg-emerald-50 text-emerald-900 border border-emerald-200">
               {incidencias?.length || 0} incidencias encontradas
             </Badge>
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           {isLoading ? (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="text-gray-500 mt-2">Cargando incidencias...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto"></div>
+              <p className="text-slate-500 mt-2">Cargando incidencias...</p>
             </div>
           ) : incidencias && incidencias.length > 0 ? (
             <div className="space-y-4">
               {incidencias.map((incidencia: any) => (
                 <Card
                   key={incidencia.id}
-                  className="hover:shadow-md transition-shadow"
+                  className="hover:shadow-md transition-shadow border border-slate-200"
                 >
                   <CardContent className="pt-6">
-                    <div className="flex justify-between items-start mb-4">
+                    <div className="flex justify-between items-start mb-4 gap-4">
                       <div className="flex-1">
-                        <h3 className="font-semibold text-lg mb-2">
+                        <h3 className="font-semibold text-lg mb-2 text-slate-900">
                           {incidencia.titulo}
                         </h3>
                         <div className="flex flex-wrap gap-2 mb-3">
-                          <Badge variant="outline">
+                          <Badge
+                            variant="outline"
+                            className="border-slate-300 text-slate-800"
+                          >
                             {incidencia.areas?.nombre}
                           </Badge>
                           <Badge
                             variant="outline"
+                            className="border bg-white"
                             style={{
                               borderColor: incidencia.clasificaciones?.color,
                               color: incidencia.clasificaciones?.color,
@@ -512,14 +538,17 @@ const ReportesView = () => {
                             {incidencia.prioridad}
                           </Badge>
                           {incidencia.salas?.nombre && (
-                            <Badge variant="secondary">
-                              Sala: {incidencia.salas.nombre}
+                            <Badge
+                              variant="secondary"
+                              className="bg-emerald-50 text-emerald-900 border border-emerald-100"
+                            >
+                              Sucursal: {incidencia.salas.nombre}
                             </Badge>
                           )}
                         </div>
                       </div>
-                      <div className="text-right text-sm text-gray-500">
-                        <p className="flex items-center gap-1">
+                      <div className="text-right text-sm text-slate-500">
+                        <p className="flex items-center gap-1 justify-end">
                           <Calendar className="w-3 h-3" />
                           {format(
                             new Date(incidencia.fecha_incidencia),
@@ -528,20 +557,33 @@ const ReportesView = () => {
                           )}
                         </p>
                         <p className="mt-1">
-                          Por:{" "}
+                          <span className="font-medium text-slate-700">
+                            Reportado por:{" "}
+                          </span>
                           {incidencia.reportado_por_profile?.full_name ||
                             incidencia.reportado_por_profile?.email ||
                             incidencia.reportado_por}
                         </p>
+                        {incidencia.cerrado_por_profile ||
+                        incidencia.cerrado_por ? (
+                          <p className="mt-1">
+                            <span className="font-medium text-slate-700">
+                              Cerrado por:{" "}
+                            </span>
+                            {incidencia.cerrado_por_profile?.full_name ||
+                              incidencia.cerrado_por_profile?.email ||
+                              incidencia.cerrado_por}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
 
-                    <p className="text-gray-700 mb-4">
+                    <p className="text-slate-700 mb-4">
                       {incidencia.descripcion}
                     </p>
 
                     {incidencia.observaciones && (
-                      <div className="bg-blue-50 p-3 rounded-lg mb-4">
+                      <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-lg mb-4 text-sm text-emerald-900">
                         <strong>Observaciones:</strong>{" "}
                         {incidencia.observaciones}
                       </div>
@@ -549,8 +591,8 @@ const ReportesView = () => {
 
                     {incidencia.imagenes_incidencias &&
                       incidencia.imagenes_incidencias.length > 0 && (
-                        <div className="border-t pt-4">
-                          <p className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                        <div className="border-top border-slate-100 pt-4">
+                          <p className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
                             <ImageIcon className="w-4 h-4" />
                             Evidencia multimedia (
                             {incidencia.imagenes_incidencias.length} archivos)
@@ -563,8 +605,8 @@ const ReportesView = () => {
                                 return (
                                   <div key={imagen.id} className="relative">
                                     {isVideo ? (
-                                      <div className="w-full h-20 bg-gray-100 rounded flex items-center justify-center">
-                                        <span className="text-xs text-gray-500">
+                                      <div className="w-full h-20 bg-slate-100 rounded flex items-center justify-center">
+                                        <span className="text-xs text-slate-500">
                                           🎥 Video
                                         </span>
                                       </div>
@@ -572,7 +614,7 @@ const ReportesView = () => {
                                       <img
                                         src={imagen.url_imagen}
                                         alt="Evidencia"
-                                        className="w-full h-20 object-cover rounded cursor-pointer hover:opacity-80"
+                                        className="w-full h-20 object-cover rounded cursor-pointer hover:opacity-80 border border-slate-200"
                                         onClick={() =>
                                           window.open(
                                             imagen.url_imagen,
@@ -594,7 +636,7 @@ const ReportesView = () => {
             </div>
           ) : (
             <div className="text-center py-8">
-              <p className="text-gray-500">
+              <p className="text-slate-500">
                 No se encontraron incidencias con los filtros aplicados
               </p>
             </div>
