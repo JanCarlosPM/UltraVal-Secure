@@ -105,7 +105,6 @@ interface IncidenciaUsuario {
   clasificacion_id: string | null;
   sala_id: string | null;
   observaciones: string | null;
-  tiempo_minutos: number | null;
   fecha_incidencia: string | null;
   created_at: string;
   fecha_cierre?: string | null;
@@ -124,7 +123,6 @@ interface HistorialEstado {
   comentario: string;
   cambiado_por: string | null;
   fecha_cambio: string;
-  tiempo_minutos: number | null;
 }
 
 const getPrioridadColor = (prioridad: Prioridad | string) => {
@@ -299,8 +297,7 @@ const HistorialIncidenciasView = () => {
           estado,
           comentario,
           cambiado_por,
-          fecha_cambio,
-          tiempo_minutos
+          fecha_cambio
         `
         )
         .eq("incidencia_id", selectedIncidencia.id)
@@ -684,13 +681,6 @@ const HistorialIncidenciasView = () => {
                 </div>
               )}
 
-              {typeof inc.tiempo_minutos === "number" && (
-                <div className="bg-blue-50 p-3 rounded-lg mb-3 text-sm">
-                  <strong>Tiempo estimado:</strong>{" "}
-                  {inc.tiempo_minutos} minutos
-                </div>
-              )}
-
               <div className="pt-3 border-t flex flex-wrap gap-2 justify-end">
                 <Button
                   variant="outline"
@@ -939,21 +929,6 @@ const HistorialIncidenciasView = () => {
                       </CardContent>
                     </Card>
                   )}
-
-                  {typeof selectedIncidencia.tiempo_minutos === "number" && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base">
-                          Tiempo estimado
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm text-muted-foreground">
-                          {selectedIncidencia.tiempo_minutos} minutos
-                        </p>
-                      </CardContent>
-                    </Card>
-                  )}
                 </TabsContent>
 
                 <TabsContent value="seguimiento" className="space-y-4">
@@ -983,9 +958,6 @@ const HistorialIncidenciasView = () => {
                                 <th className="px-3 py-2">Estado</th>
                                 <th className="px-3 py-2">Fecha y hora</th>
                                 <th className="px-3 py-2">Comentario</th>
-                                <th className="px-3 py-2 text-center">
-                                  Tiempo (min)
-                                </th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1007,9 +979,6 @@ const HistorialIncidenciasView = () => {
                                     <td className="px-3 py-2">
                                       {h.comentario}
                                     </td>
-                                    <td className="px-3 py-2 text-center whitespace-nowrap">
-                                      {h.tiempo_minutos ?? "-"}
-                                    </td>
                                   </tr>
                                 );
                               })}
@@ -1022,7 +991,7 @@ const HistorialIncidenciasView = () => {
 
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-base flex items-center gap-2">
+                      <CardTitle className="text-base exitos flex items-center gap-2">
                         <MessageCircle className="w-4 h-4" />
                         Responder solicitud de información
                       </CardTitle>
@@ -1162,7 +1131,6 @@ const HistorialIncidenciasView = () => {
             </div>
           )}
 
-          {/* AQUÍ ESTÁ EL CAMPO DE COMENTARIO ANTES DE ELIMINAR */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-800">
               Comentario / justificación (obligatorio)

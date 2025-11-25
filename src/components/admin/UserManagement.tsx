@@ -195,19 +195,20 @@ const UserManagement = () => {
     },
   });
 
-  // Sucursales (salas)
-  const { data: salas } = useQuery({
-    queryKey: ["salas"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("salas")
-        .select("*")
-        .order("nombre");
+// Sucursales (salas)
+const { data: salas } = useQuery({
+  queryKey: ["salas"],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("salas")
+      .select("*")
+      .eq("activo", true)     // ← SOLO ACTIVAS
+      .order("nombre");
 
-      if (error) throw error;
-      return data as Sala[];
-    },
-  });
+    if (error) throw error;
+    return data as Sala[];
+  },
+});
 
   // Tipos de incidencia (clasificaciones)
   const { data: clasificaciones } = useQuery({
