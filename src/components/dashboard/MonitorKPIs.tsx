@@ -193,7 +193,7 @@ const MonitorKPIs = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Target className="w-4 h-4 text-blue-500" />
-              Monitores Activos
+              Personal Activos
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -214,21 +214,6 @@ const MonitorKPIs = () => {
               {Math.round(monitorKPIs?.reduce((sum, m) => sum + m.eficiencia_score, 0) / (monitorKPIs?.length || 1))}%
             </div>
             <p className="text-xs text-gray-500">Score general</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Clock className="w-4 h-4 text-orange-500" />
-              Tiempo Promedio
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {Math.round(monitorKPIs?.reduce((sum, m) => sum + m.tiempo_promedio_respuesta, 0) / (monitorKPIs?.length || 1))}h
-            </div>
-            <p className="text-xs text-gray-500">Respuesta</p>
           </CardContent>
         </Card>
 
