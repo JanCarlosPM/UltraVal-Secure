@@ -69,7 +69,7 @@ type EstadoTecnico =
   | "en_espera_info"
   | "cerrada"
   | "rechazada"
-  | "reasignar"; // <-- NUEVO ESTADO
+  | "reasignar"; // estado para solicitar reasignación
 
 interface AreaLite {
   nombre: string;
@@ -179,7 +179,7 @@ const MisIncidenciasAsignadasView = () => {
   }
 
   /* =========================================================
-     Query incidencias asignadas al técnico
+     Query incidencias asignadas al técnico (solo visible = true)
      ========================================================= */
 
   const {
@@ -205,6 +205,7 @@ const MisIncidenciasAsignadasView = () => {
         `
         )
         .eq("responsable_id", profile.id)
+        .eq("visible", true) // SOLO incidencias visibles
         .in("estado", [
           "asignada",
           "en_curso",
@@ -212,7 +213,7 @@ const MisIncidenciasAsignadasView = () => {
           "en_espera_info",
           "cerrada",
           "rechazada",
-          "reasignar", // <-- incluir también las reasignadas
+          "reasignar", // incluir también las que están en solicitud de reasignación
         ])
         .order("created_at", { ascending: false });
 
@@ -333,7 +334,7 @@ const MisIncidenciasAsignadasView = () => {
     },
   });
 
-  // Cambiar estado desde diálogo de seguimiento
+  // Cambiar estado desde diálogo de seguimiento (incluye 'reasignar')
   const actualizarEstadoIncidencia = useMutation({
     mutationFn: async (params: {
       incidenciaId: string;
@@ -363,7 +364,7 @@ const MisIncidenciasAsignadasView = () => {
       const { error: updateError } = await supabase
         .from("incidencias")
         .update({
-          estado,
+          estado, // aquí puede ir 'en_curso', 'en_pausa', 'en_espera_info' o 'reasignar'
           updated_at: now,
         })
         .eq("id", incidenciaId)
@@ -457,8 +458,7 @@ const MisIncidenciasAsignadasView = () => {
       case "reasignar":
         return (
           <Badge className="border border-sky-500 bg-sky-50 text-sky-800 flex items-center">
-            {/* puedes cambiar el icono si querés */}
-            Reasignación solicitada
+            Reasignar
           </Badge>
         );
       default:
@@ -877,7 +877,7 @@ const MisIncidenciasAsignadasView = () => {
                           En espera de información
                         </SelectItem>
                         <SelectItem value="reasignar">
-                          Solicitar reasignación
+                          Reasignar
                         </SelectItem>
                       </SelectContent>
                     </Select>

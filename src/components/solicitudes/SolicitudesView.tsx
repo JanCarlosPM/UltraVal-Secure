@@ -39,7 +39,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 
 import {
   Clock,
@@ -95,7 +94,7 @@ export interface Incidencia {
   responsable_id: string | null;
   reportado_por: string | null;
   fecha_incidencia: string | null;
-  tiempo_minutos: number | null;
+  tiempo_minutos: number | null; // se mantiene en el tipo por la BD, pero ya no se usa en UI
   observaciones: string | null;
   created_at: string;
   fecha_cierre?: string | null;
@@ -139,10 +138,11 @@ export interface HistorialEstado {
   comentario: string | null;
   cambiado_por: string | null;
   fecha_cambio: string;
-  tiempo_minutos: number | null;
+  tiempo_minutos: number | null; // se sigue trayendo pero no se muestra
 }
 
 // Estados disponibles para el combo de "Registrar cambio de estado"
+// 🔹 Se eliminó "reabierta" para que NO aparezca en el select
 const ESTADOS_POSIBLES: EstadoIncidencia[] = [
   ESTADOS.PENDIENTE,
   ESTADOS.ASIGNADA,
@@ -151,10 +151,10 @@ const ESTADOS_POSIBLES: EstadoIncidencia[] = [
   ESTADOS.EN_ESPERA_INFO,
   ESTADOS.CERRADA,
   ESTADOS.RESUELTA,
-  "reabierta",
 ];
 
 // Estados que consideramos "en ejecución" para la tarjeta de estadísticas y tab
+// 🔹 Dejamos "reabierta" sólo por si hay registros legacy, pero no se puede seleccionar
 const ESTADOS_EN_EJECUCION: EstadoIncidencia[] = [
   ESTADOS.ASIGNADA,
   ESTADOS.EN_CURSO,
@@ -424,14 +424,7 @@ const IncidenciaCard = ({
             {incidencia.observaciones}
           </div>
         )}
-
-        {/* Tiempo */}
-        {typeof incidencia.tiempo_minutos === "number" && (
-          <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-lg mb-1 text-sm text-emerald-900">
-            <strong>Tiempo estimado:</strong> {incidencia.tiempo_minutos}{" "}
-            minutos
-          </div>
-        )}
+        {/* 🔹 Bloque de tiempo estimado eliminado */}
       </CardContent>
     </Card>
   );
@@ -474,7 +467,6 @@ export const SolicitudesView = () => {
   // estado del formulario de cambio de estado
   const [nuevoEstado, setNuevoEstado] = useState<EstadoIncidencia | "">("");
   const [comentarioEstado, setComentarioEstado] = useState("");
-  const [tiempoCambio, setTiempoCambio] = useState<string>("");
 
   // Historial de estados de la incidencia seleccionada
   const {
@@ -516,9 +508,8 @@ export const SolicitudesView = () => {
       incidenciaId: string;
       nuevoEstado: EstadoIncidencia;
       comentario: string;
-      tiempoMinutos: number | null;
     }) => {
-      const { incidenciaId, nuevoEstado, comentario, tiempoMinutos } = params;
+      const { incidenciaId, nuevoEstado, comentario } = params;
 
       if (!profile?.id) {
         throw new Error("Usuario no autenticado para registrar el cambio.");
@@ -526,7 +517,7 @@ export const SolicitudesView = () => {
 
       const now = new Date().toISOString();
 
-      // 1) Inserta en historial
+      // 1) Inserta en historial (sin tiempo_minutos)
       const { error: histError } = await supabase
         .from("incidencia_historial_estados")
         .insert({
@@ -535,7 +526,7 @@ export const SolicitudesView = () => {
           comentario,
           cambiado_por: profile.id,
           fecha_cambio: now,
-          tiempo_minutos: tiempoMinutos,
+          // tiempo_minutos: null  // se puede omitir
         });
 
       if (histError) throw histError;
@@ -567,7 +558,6 @@ export const SolicitudesView = () => {
       }
       // limpiar formulario
       setComentarioEstado("");
-      setTiempoCambio("");
       setNuevoEstado("");
     },
     onError: (error) => {
@@ -594,20 +584,10 @@ export const SolicitudesView = () => {
       return;
     }
 
-    if (tiempoCambio && Number(tiempoCambio) < 0) {
-      toast.error("El tiempo no puede ser negativo");
-      return;
-    }
-
     registrarCambioEstado.mutate({
       incidenciaId: selectedIncidencia.id,
       nuevoEstado,
       comentario: comentarioEstado.trim(),
-      tiempoMinutos: tiempoCambio
-        ? Number.isNaN(Number(tiempoCambio))
-          ? null
-          : Number(tiempoCambio)
-        : null,
     });
   };
 
@@ -616,14 +596,12 @@ export const SolicitudesView = () => {
     // al abrir, sugerimos el estado actual como valor inicial
     setNuevoEstado(incidencia.estado);
     setComentarioEstado("");
-    setTiempoCambio("");
   };
 
   const handleCloseDetail = () => {
     setSelectedIncidencia(null);
     setNuevoEstado("");
     setComentarioEstado("");
-    setTiempoCambio("");
   };
 
   if (isLoading) {
@@ -1005,21 +983,7 @@ export const SolicitudesView = () => {
                       </CardContent>
                     </Card>
                   )}
-
-                  {typeof selectedIncidencia.tiempo_minutos === "number" && (
-                    <Card className="border border-emerald-100 bg-emerald-50/60">
-                      <CardHeader>
-                        <CardTitle className="text-base text-emerald-900">
-                          Tiempo estimado
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm text-emerald-900">
-                          {selectedIncidencia.tiempo_minutos} minutos
-                        </p>
-                      </CardContent>
-                    </Card>
-                  )}
+                  {/* 🔹 Card de tiempo estimado eliminada */}
                 </TabsContent>
 
                 {/* SEGUIMIENTO */}
@@ -1053,9 +1017,6 @@ export const SolicitudesView = () => {
                                 <th className="px-3 py-2">Fecha y hora</th>
                                 <th className="px-3 py-2">Usuario</th>
                                 <th className="px-3 py-2">Comentario</th>
-                                <th className="px-3 py-2">
-                                  Tiempo (min)
-                                </th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1090,9 +1051,6 @@ export const SolicitudesView = () => {
                                     <td className="px-3 py-2 text-slate-700">
                                       {h.comentario}
                                     </td>
-                                    <td className="px-3 py-2 text-center whitespace-nowrap text-slate-700">
-                                      {h.tiempo_minutos ?? "-"}
-                                    </td>
                                   </tr>
                                 );
                               })}
@@ -1115,7 +1073,7 @@ export const SolicitudesView = () => {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">
                           <label className="text-sm font-medium text-slate-800">
                             Nuevo estado
@@ -1137,24 +1095,6 @@ export const SolicitudesView = () => {
                               ))}
                             </SelectContent>
                           </Select>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium text-slate-800">
-                            Tiempo invertido (min)
-                            <span className="text-xs text-slate-500">
-                              {" "}
-                              (opcional)
-                            </span>
-                          </label>
-                          <Input
-                            type="number"
-                            min={0}
-                            value={tiempoCambio}
-                            onChange={(e) =>
-                              setTiempoCambio(e.target.value)
-                            }
-                            className="border-slate-300 focus-visible:ring-emerald-500"
-                          />
                         </div>
                       </div>
 
