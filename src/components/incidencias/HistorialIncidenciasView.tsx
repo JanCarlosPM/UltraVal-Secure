@@ -208,9 +208,9 @@ const HistorialIncidenciasView = () => {
   const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false);
   const [comentarioReapertura, setComentarioReapertura] = useState("");
 
-  // Filtro de vista (tabs)
+  // Filtro de vista (tabs) -> TODAS / PENDIENTES / EN ESPERA INFO / CERRADAS
   const [filtro, setFiltro] = useState<
-    "todas" | "abiertas" | "en_pausa" | "en_espera_info" | "cerradas"
+    "todas" | "pendientes" | "en_espera_info" | "cerradas"
   >("todas");
 
   if (!profile) {
@@ -473,18 +473,18 @@ const HistorialIncidenciasView = () => {
     ["cerrada", "resuelta"].includes(i.estado as string)
   );
   const enPausa = incidencias.filter((i) => i.estado === "en_pausa");
+  const pendientes = incidencias.filter((i) => i.estado === "pendiente");
 
   const ultimoHistorialId =
     historialEstados.length > 0
       ? historialEstados[historialEstados.length - 1].id
       : null;
 
+  // Filtro según tabs: todas / pendientes / en_espera_info / cerradas
   const incidenciasFiltradas = useMemo(() => {
     switch (filtro) {
-      case "abiertas":
-        return abiertas;
-      case "en_pausa":
-        return enPausa;
+      case "pendientes":
+        return pendientes;
       case "en_espera_info":
         return enEsperaInfo;
       case "cerradas":
@@ -493,7 +493,7 @@ const HistorialIncidenciasView = () => {
       default:
         return incidencias;
     }
-  }, [filtro, incidencias, abiertas, enPausa, enEsperaInfo, cerradas]);
+  }, [filtro, incidencias, pendientes, enEsperaInfo, cerradas]);
 
   const renderListaIncidencias = (lista: IncidenciaUsuario[]) => {
     if (lista.length === 0) {
@@ -662,7 +662,8 @@ const HistorialIncidenciasView = () => {
               <span className="text-xs text-slate-500 uppercase">
                 Total reportadas
               </span>
-              <span className="text-2xl font-bold text-slate-800">
+              <span className="text-2xl font-bold text-slate-8
+00">
                 {total}
               </span>
             </div>
@@ -707,31 +708,24 @@ const HistorialIncidenciasView = () => {
         value={filtro}
         onValueChange={(val) =>
           setFiltro(
-            val as
-              | "todas"
-              | "abiertas"
-              | "en_pausa"
-              | "en_espera_info"
-              | "cerradas"
+            val as "todas" | "pendientes" | "en_espera_info" | "cerradas"
           )
         }
         className="w-full"
       >
-        <TabsList className="grid w-full grid-cols-5 mb-4">
+        <TabsList className="grid w-full grid-cols-4 mb-4">
           <TabsTrigger value="todas">Todas</TabsTrigger>
-          <TabsTrigger value="abiertas">Abiertas</TabsTrigger>
-          <TabsTrigger value="en_pausa">En pausa</TabsTrigger>
-          <TabsTrigger value="en_espera_info">En espera de info</TabsTrigger>
+          <TabsTrigger value="pendientes">Pendientes</TabsTrigger>
+          <TabsTrigger value="en_espera_info">
+            En espera de info
+          </TabsTrigger>
           <TabsTrigger value="cerradas">Cerradas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="todas" className="mt-0">
           {renderListaIncidencias(incidenciasFiltradas)}
         </TabsContent>
-        <TabsContent value="abiertas" className="mt-0">
-          {renderListaIncidencias(incidenciasFiltradas)}
-        </TabsContent>
-        <TabsContent value="en_pausa" className="mt-0">
+        <TabsContent value="pendientes" className="mt-0">
           {renderListaIncidencias(incidenciasFiltradas)}
         </TabsContent>
         <TabsContent value="en_espera_info" className="mt-0">

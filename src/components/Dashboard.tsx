@@ -120,36 +120,7 @@ const Dashboard = () => {
         return (
           <div className="space-y-6">
             {/* Tarjetas de estadísticas principales */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatsCard
-                title="Incidencias Totales"
-                value={totalIncidencias || 0}
-                description="Total de incidencias aprobadas"
-                icon={Activity}
-                gradient="blue"
-              />
-              <StatsCard
-                title="Alertas Críticas"
-                value={alertasCriticas || 0}
-                description="Requieren atención inmediata"
-                icon={AlertTriangle}
-                gradient="red"
-              />
-              <StatsCard
-                title="Eventos Hoy"
-                value={eventosHoy || 0}
-                description="Incidencias registradas hoy"
-                icon={Calendar}
-                gradient="green"
-              />
-              <StatsCard
-                title="Monitores Activos"
-                value={monitoresActivos || 0}
-                description="Usuarios reportando incidencias"
-                icon={Users}
-                gradient="purple"
-              />
-            </div>
+           
 
             {/* Gráficos y estadísticas quincenales */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
