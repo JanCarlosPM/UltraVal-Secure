@@ -208,6 +208,11 @@ const HistorialIncidenciasView = () => {
     useState<IncidenciaUsuario | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
+  // Filtro: todas, pendientes, en espera de info, cerradas
+  const [filtro, setFiltro] = useState<
+    "todas" | "pendientes" | "en_espera_info" | "cerradas"
+  >("todas");
+
   if (!profile) {
     return (
       <Card>
@@ -251,7 +256,7 @@ const HistorialIncidenciasView = () => {
           )
         `
         )
-        .eq("reportado_por", profile.id) // si usas email, cambia a .eq("reportado_por", profile.email)
+        .eq("reportado_por", profile.id)
         .eq("visible", true)
         .order("created_at", { ascending: false });
 
@@ -319,7 +324,6 @@ const HistorialIncidenciasView = () => {
 
       const now = new Date().toISOString();
 
-      // 1) Actualizar observaciones (puede ser append si quieres)
       const { error: updError } = await supabase
         .from("incidencias")
         .update({
@@ -331,7 +335,6 @@ const HistorialIncidenciasView = () => {
 
       if (updError) throw updError;
 
-      // 2) Registrar en historial (mismo estado, solo como nota)
       const { error: histError } = await supabase
         .from("incidencia_historial_estados")
         .insert({
@@ -400,7 +403,6 @@ const HistorialIncidenciasView = () => {
     selectedIncidencia && selectedIncidencia.estado === "en_espera_info";
 
   const puedeEliminar = (inc: IncidenciaUsuario) => {
-    // Ajustable: aquí decides en qué estados el usuario puede "borrar"
     return !["cerrada", "resuelta"].includes(inc.estado as string);
   };
 
@@ -424,8 +426,11 @@ const HistorialIncidenciasView = () => {
     eliminarIncidencia.mutate({ incidenciaId: incidenciaAEliminar.id });
   };
 
-  // Stats rápidas
+  // Stats rápidas + subconjuntos para filtros
   const total = incidencias.length;
+  const pendientes = incidencias.filter(
+    (i) => i.estado === "pendiente"
+  );
   const abiertas = incidencias.filter(
     (i) =>
       !["cerrada", "resuelta", "rechazada", "rechazado"].includes(
@@ -443,6 +448,145 @@ const HistorialIncidenciasView = () => {
     historialEstados.length > 0
       ? historialEstados[historialEstados.length - 1].id
       : null;
+
+  // Incidencias filtradas según el tab activo
+  const incidenciasFiltradas = useMemo(() => {
+    switch (filtro) {
+      case "pendientes":
+        return pendientes;
+      case "en_espera_info":
+        return enEsperaInfo;
+      case "cerradas":
+        return cerradas;
+      case "todas":
+      default:
+        return incidencias;
+    }
+  }, [filtro, incidencias, pendientes, enEsperaInfo, cerradas]);
+
+  // Render de lista reutilizable para cada filtro
+  const renderListaIncidencias = (lista: IncidenciaUsuario[]) => {
+    if (lista.length === 0) {
+      return (
+        <Card>
+          <CardContent className="text-center py-8">
+            <CheckCircle className="mx-auto h-12 w-12 text-emerald-500 mb-4" />
+            <p className="text-gray-600">
+              No hay incidencias para este filtro.
+            </p>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {lista.map((inc) => (
+          <Card
+            key={inc.id}
+            className="hover:shadow-md transition-shadow cursor-pointer"
+            onClick={() => abrirDetalle(inc)}
+          >
+            <CardContent className="pt-6">
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex-1">
+                  <h3 className="font-semibold text-lg mb-2">
+                    {inc.titulo}
+                  </h3>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {/* Área */}
+                    <Badge variant="outline">
+                      <MapPin className="w-3 h-3 mr-1" />
+                      {inc.areas?.nombre || "Sin área"}
+                    </Badge>
+
+                    {/* Clasificaciones múltiples o simple */}
+                    {inc.incidencia_clasificaciones &&
+                    inc.incidencia_clasificaciones.length > 0 ? (
+                      inc.incidencia_clasificaciones.map((rel) => (
+                        <Badge
+                          key={rel.id}
+                          variant="outline"
+                          style={{
+                            borderColor:
+                              rel.clasificaciones?.color || "#6B7280",
+                            color: rel.clasificaciones?.color || "#374151",
+                          }}
+                        >
+                          {rel.clasificaciones?.nombre}
+                        </Badge>
+                      ))
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        style={{
+                          borderColor:
+                            inc.clasificaciones?.color || "#6B7280",
+                          color: inc.clasificaciones?.color || "#374151",
+                        }}
+                      >
+                        {inc.clasificaciones?.nombre || "Sin clasificación"}
+                      </Badge>
+                    )}
+
+                    {/* Prioridad */}
+                    <Badge
+                      className={`text-white ${getPrioridadColor(
+                        inc.prioridad
+                      )}`}
+                    >
+                      <AlertTriangle className="w-3 h-3 mr-1" />
+                      {inc.prioridad}
+                    </Badge>
+
+                    {/* Estado */}
+                    <Badge
+                      variant="outline"
+                      className={`capitalize ${getEstadoBadgeClasses(
+                        inc.estado as string
+                      )}`}
+                    >
+                      {formatEstado(inc.estado as string)}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="text-right text-sm text-gray-500">
+                  <p className="flex items-center gap-1 justify-end">
+                    <Calendar className="w-3 h-3" />
+                    Reportada: {formatFechaHora(inc.fecha_incidencia)}
+                  </p>
+                  <p className="flex items-center gap-1 mt-1 justify-end">
+                    <Clock className="w-3 h-3" />
+                    Creada: {formatFecha(inc.created_at)}
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-gray-700 mb-3 line-clamp-2">
+                {inc.descripcion}
+              </p>
+
+              {inc.observaciones && (
+                <div className="bg-slate-50 p-3 rounded-lg mb-3 text-sm">
+                  <strong>Observaciones:</strong> {inc.observaciones}
+                </div>
+              )}
+
+              {typeof inc.tiempo_minutos === "number" && (
+                <div className="bg-blue-50 p-3 rounded-lg mb-3 text-sm">
+                  <strong>Tiempo estimado:</strong>{" "}
+                  {inc.tiempo_minutos} minutos
+                </div>
+              )}
+
+              {/* Botón eliminar ELIMINADO DEL VIEW */}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  };
 
   /* =========================================================
      Render
@@ -515,139 +659,42 @@ const HistorialIncidenciasView = () => {
         </CardContent>
       </Card>
 
-      {/* Lista de incidencias */}
-      {incidencias.length > 0 ? (
-        <div className="space-y-4">
-          {incidencias.map((inc) => (
-            <Card
-              key={inc.id}
-              className="hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => abrirDetalle(inc)}
-            >
-              <CardContent className="pt-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-lg mb-2">
-                      {inc.titulo}
-                    </h3>
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {/* Área */}
-                      <Badge variant="outline">
-                        <MapPin className="w-3 h-3 mr-1" />
-                        {inc.areas?.nombre || "Sin área"}
-                      </Badge>
+      {/* Filtros estilo "Gestionar incidencias" + lista */}
+      <Tabs
+        value={filtro}
+        onValueChange={(val) =>
+          setFiltro(val as "todas" | "pendientes" | "en_espera_info" | "cerradas")
+        }
+        className="w-full"
+      >
+        <TabsList className="grid w-full grid-cols-4 mb-4">
+          <TabsTrigger value="todas">
+            Todas ({total})
+          </TabsTrigger>
+          <TabsTrigger value="pendientes">
+            Pendientes ({pendientes.length})
+          </TabsTrigger>
+          <TabsTrigger value="en_espera_info">
+            En espera de info ({enEsperaInfo.length})
+          </TabsTrigger>
+          <TabsTrigger value="cerradas">
+            Cerradas ({cerradas.length})
+          </TabsTrigger>
+        </TabsList>
 
-                      {/* Clasificaciones múltiples o simple */}
-                      {inc.incidencia_clasificaciones &&
-                      inc.incidencia_clasificaciones.length > 0 ? (
-                        inc.incidencia_clasificaciones.map((rel) => (
-                          <Badge
-                            key={rel.id}
-                            variant="outline"
-                            style={{
-                              borderColor:
-                                rel.clasificaciones?.color || "#6B7280",
-                              color: rel.clasificaciones?.color || "#374151",
-                            }}
-                          >
-                            {rel.clasificaciones?.nombre}
-                          </Badge>
-                        ))
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          style={{
-                            borderColor:
-                              inc.clasificaciones?.color || "#6B7280",
-                            color: inc.clasificaciones?.color || "#374151",
-                          }}
-                        >
-                          {inc.clasificaciones?.nombre || "Sin clasificación"}
-                        </Badge>
-                      )}
-
-                      {/* Prioridad */}
-                      <Badge
-                        className={`text-white ${getPrioridadColor(
-                          inc.prioridad
-                        )}`}
-                      >
-                        <AlertTriangle className="w-3 h-3 mr-1" />
-                        {inc.prioridad}
-                      </Badge>
-
-                      {/* Estado */}
-                      <Badge
-                        variant="outline"
-                        className={`capitalize ${getEstadoBadgeClasses(
-                          inc.estado as string
-                        )}`}
-                      >
-                        {formatEstado(inc.estado as string)}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div className="text-right text-sm text-gray-500">
-                    <p className="flex items-center gap-1 justify-end">
-                      <Calendar className="w-3 h-3" />
-                      Reportada: {formatFechaHora(inc.fecha_incidencia)}
-                    </p>
-                    <p className="flex items-center gap-1 mt-1 justify-end">
-                      <Clock className="w-3 h-3" />
-                      Creada: {formatFecha(inc.created_at)}
-                    </p>
-                  </div>
-                </div>
-
-                <p className="text-gray-700 mb-3 line-clamp-2">
-                  {inc.descripcion}
-                </p>
-
-                {inc.observaciones && (
-                  <div className="bg-slate-50 p-3 rounded-lg mb-3 text-sm">
-                    <strong>Observaciones:</strong> {inc.observaciones}
-                  </div>
-                )}
-
-                {typeof inc.tiempo_minutos === "number" && (
-                  <div className="bg-blue-50 p-3 rounded-lg mb-3 text-sm">
-                    <strong>Tiempo estimado:</strong>{" "}
-                    {inc.tiempo_minutos} minutos
-                  </div>
-                )}
-
-                {/* Botón eliminar (solo si aplica) */}
-                {puedeEliminar(inc) && (
-                  <div className="pt-3 border-t flex justify-end">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-rose-500 text-rose-600 hover:bg-rose-50"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        abrirDialogoEliminar(inc);
-                      }}
-                    >
-                      <XCircle className="w-4 h-4 mr-2" />
-                      Eliminar incidencia
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="text-center py-8">
-            <CheckCircle className="mx-auto h-12 w-12 text-emerald-500 mb-4" />
-            <p className="text-gray-600">
-              Aún no has registrado incidencias en el sistema.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+        <TabsContent value="todas" className="mt-0">
+          {renderListaIncidencias(incidenciasFiltradas)}
+        </TabsContent>
+        <TabsContent value="pendientes" className="mt-0">
+          {renderListaIncidencias(incidenciasFiltradas)}
+        </TabsContent>
+        <TabsContent value="en_espera_info" className="mt-0">
+          {renderListaIncidencias(incidenciasFiltradas)}
+        </TabsContent>
+        <TabsContent value="cerradas" className="mt-0">
+          {renderListaIncidencias(incidenciasFiltradas)}
+        </TabsContent>
+      </Tabs>
 
       {/* DIALOGO DETALLE / SEGUIMIENTO */}
       <Dialog
@@ -800,7 +847,8 @@ const HistorialIncidenciasView = () => {
                             </thead>
                             <tbody>
                               {historialEstados.map((h) => {
-                                const isUltimo = h.id === ultimoHistorialId;
+                                const isUltimo =
+                                  h.id === ultimoHistorialId;
                                 return (
                                   <tr
                                     key={h.id}
@@ -940,7 +988,7 @@ const HistorialIncidenciasView = () => {
         </DialogContent>
       </Dialog>
 
-      {/* DIALOGO CONFIRMACIÓN ELIMINAR */}
+      {/* DIALOGO CONFIRMACIÓN ELIMINAR (sigue existiendo la lógica, pero ya no hay botón en el listado) */}
       <Dialog
         open={isDeleteDialogOpen}
         onOpenChange={(open) => {

@@ -876,9 +876,7 @@ const MisIncidenciasAsignadasView = () => {
                         <SelectItem value="en_espera_info">
                           En espera de información
                         </SelectItem>
-                        <SelectItem value="reasignar">
-                          Reasignar
-                        </SelectItem>
+                        
                       </SelectContent>
                     </Select>
                   </div>

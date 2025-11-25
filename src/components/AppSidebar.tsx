@@ -61,20 +61,7 @@ export function AppSidebar({ activeTab, onTabChange }: AppSidebarProps) {
     await supabase.auth.signOut();
   };
 
-  // Contador de solicitudes nuevas (pendientes)
-  const { data: solicitudesPendientes = 0 } = useQuery({
-    queryKey: ['solicitudes-pendientes-count'],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from('solicitudes')
-        .select('*', { count: 'exact', head: true })
-        .eq('estado', 'pendiente');
-      
-      if (error) throw error;
-      return count || 0;
-    },
-    refetchInterval: 30000, // Refrescar cada 30 segundos
-  });
+
 
   // Definición del menú con íconos
   const menuItems = [
@@ -215,7 +202,7 @@ export function AppSidebar({ activeTab, onTabChange }: AppSidebarProps) {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               const isSolicitudes = item.id === 'solicitudes';
-              const hasPendientes = isSolicitudes && solicitudesPendientes > 0;
+      
               
               return (
                 <SidebarMenuItem key={item.id}>
@@ -233,13 +220,7 @@ export function AppSidebar({ activeTab, onTabChange }: AppSidebarProps) {
                   >
                     <Icon className="h-4 w-4" />
                     <span className="flex-1">{item.label}</span>
-                    {hasPendientes && (
-                      <Badge 
-                        className="ml-auto h-5 min-w-[20px] rounded-full px-1.5 text-[11px] font-semibold bg-emerald-600 text-white shadow-sm"
-                      >
-                        {solicitudesPendientes}
-                      </Badge>
-                    )}
+                    
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               );

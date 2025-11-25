@@ -86,7 +86,7 @@ const UserStatisticsChart = () => {
           {/* Gráfico de barras */}
           <div className="lg:col-span-2 space-y-4">
             <div>
-              <h4 className="font-medium mb-2">Incidencias por Monitor (Top 8)</h4>
+              <h4 className="font-medium mb-2">Incidencias por Monitor (Top 3)</h4>
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
