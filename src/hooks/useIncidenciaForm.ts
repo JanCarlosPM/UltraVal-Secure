@@ -250,13 +250,10 @@ export const useIncidenciaForm = () => {
           if (notificationError) {
             console.error('❌ Error sending notification:', notificationError);
             toast.error('Incidencia creada, pero hubo un error enviando las notificaciones');
-          } else {
-            console.log('✅ Notification sent successfully:', notificationResult);
-            toast.success('Incidencia creada y notificaciones enviadas exitosamente');
           }
         } catch (notifError) {
           console.error('❌ Unexpected error sending notification:', notifError);
-          toast.error('Incidencia creada, pero hubo un problema enviando las notificaciones');
+          toast.error('Incidencia creada');
         }
       } else {
         console.log('ℹ️ Priority is not high enough for notification:', data.prioridad);
