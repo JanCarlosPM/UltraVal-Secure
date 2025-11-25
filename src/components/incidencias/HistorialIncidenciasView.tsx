@@ -35,7 +35,6 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Clock,
   CheckCircle,
-  XCircle,
   User,
   Calendar,
   MapPin,
@@ -203,12 +202,6 @@ const HistorialIncidenciasView = () => {
     useState<IncidenciaUsuario | null>(null);
   const [nuevoComentario, setNuevoComentario] = useState("");
 
-  // Eliminar incidencia
-  const [incidenciaAEliminar, setIncidenciaAEliminar] =
-    useState<IncidenciaUsuario | null>(null);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [comentarioEliminacion, setComentarioEliminacion] = useState("");
-
   // Reabrir incidencia
   const [incidenciaAReabrir, setIncidenciaAReabrir] =
     useState<IncidenciaUsuario | null>(null);
@@ -373,58 +366,6 @@ const HistorialIncidenciasView = () => {
     },
   });
 
-  // "Eliminar" incidencia (soft delete: visible = false) con comentario obligatorio
-  const eliminarIncidencia = useMutation({
-    mutationFn: async (params: {
-      incidenciaId: string;
-      comentario: string;
-      estadoActual: string;
-    }) => {
-      const { incidenciaId, comentario, estadoActual } = params;
-
-      if (!comentario.trim()) {
-        throw new Error("Debes ingresar un comentario para eliminar.");
-      }
-
-      const now = new Date().toISOString();
-
-      const { error: updateError } = await supabase
-        .from("incidencias")
-        .update({ visible: false, updated_at: now })
-        .eq("id", incidenciaId)
-        .eq("reportado_por", profile.id)
-        .in("estado", ["pendiente", "borrador"]);
-
-      if (updateError) throw updateError;
-
-      const { error: histError } = await supabase
-        .from("incidencia_historial_estados")
-        .insert({
-          incidencia_id: incidenciaId,
-          estado: estadoActual,
-          comentario: `Incidencia eliminada por el usuario que la reportó: ${comentario}`,
-          cambiado_por: profile.id,
-          fecha_cambio: now,
-        });
-
-      if (histError) throw histError;
-    },
-    onSuccess: () => {
-      toast.success("Incidencia eliminada correctamente");
-      setIsDeleteDialogOpen(false);
-      setIncidenciaAEliminar(null);
-      setComentarioEliminacion("");
-      if (selectedIncidencia) setSelectedIncidencia(null);
-      queryClient.invalidateQueries({
-        queryKey: ["mis-incidencias", profile.id],
-      });
-    },
-    onError: (error: any) => {
-      console.error("Error eliminando incidencia:", error);
-      toast.error(error?.message || "No se pudo eliminar la incidencia");
-    },
-  });
-
   // Reabrir incidencia (solo si está cerrada) con comentario obligatorio
   const reabrirIncidencia = useMutation({
     mutationFn: async (params: {
@@ -486,9 +427,6 @@ const HistorialIncidenciasView = () => {
   const puedeComentar =
     selectedIncidencia && selectedIncidencia.estado === "en_espera_info";
 
-  const puedeEliminar = (inc: IncidenciaUsuario) =>
-    ["pendiente", "borrador"].includes(inc.estado as string);
-
   const puedeReabrir = (inc: IncidenciaUsuario) =>
     inc.estado === "cerrada";
 
@@ -500,25 +438,6 @@ const HistorialIncidenciasView = () => {
   const cerrarDetalle = () => {
     setSelectedIncidencia(null);
     setNuevoComentario("");
-  };
-
-  const abrirDialogoEliminar = (incidencia: IncidenciaUsuario) => {
-    setIncidenciaAEliminar(incidencia);
-    setComentarioEliminacion("");
-    setIsDeleteDialogOpen(true);
-  };
-
-  const confirmarEliminar = () => {
-    if (!incidenciaAEliminar) return;
-    if (!comentarioEliminacion.trim()) {
-      toast.error("Debes ingresar un comentario para eliminar.");
-      return;
-    }
-    eliminarIncidencia.mutate({
-      incidenciaId: incidenciaAEliminar.id,
-      comentario: comentarioEliminacion.trim(),
-      estadoActual: incidenciaAEliminar.estado as string,
-    });
   };
 
   const abrirDialogoReabrir = (incidencia: IncidenciaUsuario) => {
@@ -696,21 +615,6 @@ const HistorialIncidenciasView = () => {
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Reabrir incidencia
                 </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-rose-500 text-rose-600 hover:bg-rose-50"
-                  disabled={!puedeEliminar(inc)}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!puedeEliminar(inc)) return;
-                    abrirDialogoEliminar(inc);
-                  }}
-                >
-                  <XCircle className="w-4 h-4 mr-2" />
-                  Eliminar incidencia
-                </Button>
               </div>
             </CardContent>
           </Card>
@@ -803,7 +707,12 @@ const HistorialIncidenciasView = () => {
         value={filtro}
         onValueChange={(val) =>
           setFiltro(
-            val as "todas" | "abiertas" | "en_pausa" | "en_espera_info" | "cerradas"
+            val as
+              | "todas"
+              | "abiertas"
+              | "en_pausa"
+              | "en_espera_info"
+              | "cerradas"
           )
         }
         className="w-full"
@@ -1094,80 +1003,6 @@ const HistorialIncidenciasView = () => {
               </Tabs>
             </>
           )}
-        </DialogContent>
-      </Dialog>
-
-      {/* DIALOGO CONFIRMACIÓN ELIMINAR */}
-      <Dialog
-        open={isDeleteDialogOpen}
-        onOpenChange={(open) => {
-          setIsDeleteDialogOpen(open);
-          if (!open) {
-            setIncidenciaAEliminar(null);
-            setComentarioEliminacion("");
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Eliminar incidencia</DialogTitle>
-            <DialogDescription>
-              Esta acción ocultará la incidencia de tu historial. No se
-              eliminará físicamente del sistema por temas de auditoría. Debes
-              indicar el motivo.
-            </DialogDescription>
-          </DialogHeader>
-
-          {incidenciaAEliminar && (
-            <div className="space-y-2 mb-4 text-sm">
-              <p>
-                <span className="font-semibold">Título:</span>{" "}
-                {incidenciaAEliminar.titulo}
-              </p>
-              <p>
-                <span className="font-semibold">Estado actual:</span>{" "}
-                {formatEstado(incidenciaAEliminar.estado as string)}
-              </p>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-800">
-              Comentario / justificación (obligatorio)
-            </label>
-            <Textarea
-              rows={4}
-              value={comentarioEliminacion}
-              onChange={(e) => setComentarioEliminacion(e.target.value)}
-              placeholder="Ejemplo: se creó por error, ya no aplica, se registró en el sistema equivocado, etc."
-            />
-          </div>
-
-          <DialogFooter className="mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setIsDeleteDialogOpen(false)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmarEliminar}
-              disabled={eliminarIncidencia.isPending}
-            >
-              {eliminarIncidencia.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Eliminando...
-                </>
-              ) : (
-                <>
-                  <XCircle className="w-4 h-4 mr-2" />
-                  Confirmar eliminación
-                </>
-              )}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
